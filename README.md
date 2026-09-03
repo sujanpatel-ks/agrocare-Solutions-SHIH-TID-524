@@ -1,322 +1,1104 @@
 # 🌾 AgroCare AI
 
-### AI-Powered Multimodal Smart Farming Assistant
+### Context-Aware Multimodal Agricultural Decision & Action Assistant
 
-[![Build Status](https://img.shields.io/badge/Build-Success-success?style=flat-square)](https://github.com/spacecraftech1/agrocare-ai)
-[![React Version](https://img.shields.io/badge/React-18/19-blue?style=flat-square&logo=react)](https://react.dev)
-[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
-[![Gemini API](https://img.shields.io/badge/Powered%20By-Google%20Gemini-orange?style=flat-square)](https://ai.google.dev)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind--4.0-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+> **From detecting a crop problem to deciding what to do next — AgroCare AI connects diagnosis, weather, soil, markets, local knowledge, and farmer action in one intelligent workflow.**
 
----
-
-## 📖 Overview
-
-Agriculture is the backbone of the global economy, yet smallholder farmers in developing regions face significant challenges, including crop diseases, unpredictable weather, volatile market prices, and a lack of real-time expert guidance. Furthermore, tech literacy, language barriers, and spotty internet connectivity often prevent these farmers from accessing modern digital agricultural tools.
-
-**AgroCare AI** is an advanced, production-ready, mobile-first web application designed to bridge this accessibility gap. By utilizing Google's state-of-the-art multimodal Gemini models alongside on-device localized failovers, AgroCare AI provides farmers with:
-1. **Multimodal Crop Pathology**: Real-time leaf disease scanning with computer vision.
-2. **Real-time Bidirectional Audio Dialogue**: Direct voice-based agricultural guidance powered by low-latency audio streaming.
-3. **Mandi Arbitrage & Market Intelligence**: Precise, localized Indian market rates coupled with geographic arbitrage mapping.
-4. **Resilient Local-First Failover (Gemma Edge AI)**: Zero-connectivity operations powered by an on-device rules engine loaded with official ICAR ITK database models.
+[![Build](https://img.shields.io/badge/Build-Verified-success?style=for-the-badge)](#-validation--testing)
+[![React](https://img.shields.io/badge/React-18%2F19-61DAFB?style=for-the-badge\&logo=react\&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-First-3178C6?style=for-the-badge\&logo=typescript\&logoColor=white)](https://www.typescriptlang.org/)
+[![Gemini](https://img.shields.io/badge/Google-Gemini-orange?style=for-the-badge)](https://ai.google.dev/)
+[![Firebase](https://img.shields.io/badge/Firebase-Integrated-FFCA28?style=for-the-badge\&logo=firebase\&logoColor=black)](https://firebase.google.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 ---
 
-## ⚠️ Problem Statement
+## 🚀 Why AgroCare AI?
 
-Smallholder farmers encounter severe operational limitations daily:
-- **Lack of Timely Diagnostics**: Crop disease can ruin up to 80% of a harvest before an expert can visit the site.
-- **Volatile Crop Pricing**: Intermediaries exploit market information asymmetry, keeping farmers from realizing the true value of their yield.
-- **Varying Tech Literacy & Language Barriers**: Most advanced farm management apps are written in English and rely heavily on complex text menus.
-- **Unreliable Network Infrastructure**: Remote rural regions suffer from unstable cellular data, causing cloud-only systems to crash exactly when needed.
+Traditional agricultural applications often solve **one problem at a time**:
 
----
+* Disease detection
+* Weather forecasting
+* Market prices
+* Soil analysis
+* Government schemes
+* Input supplier discovery
 
-## 💡 The Solution: AgroCare AI
+But farming decisions are **connected decisions**.
 
-AgroCare AI introduces an inclusive, multimodal ecosystem designed for resilience and accessibility:
-- **Low-Barrier Interfaces**: Integrating voice inputs and spoken outputs (Text-to-Speech) so literacy is never a prerequisite.
-- **Multilingual Native Execution**: The entire interface and all AI advisories can be instantly toggled between **English**, **Hindi (हिन्दी)**, and **Kannada (ಕನ್ನಡ)**.
-- **Secured Grounded Services**: Combining real government mandi APIs with Google Search and Maps Grounding to produce highly accurate, reliable, hallucination-free agricultural intelligence.
-- **Seamless Local Failover**: A smart Model Router that automatically transitions to **Gemma Local-First Edge AI** during network dropouts or API quota exhausts, safeguarding core farming operations.
+A disease diagnosis without weather context can lead to bad spraying decisions.
 
----
+A market price without transportation cost does not tell the farmer where to sell.
 
-## ✨ Key Features
+A fertilizer recommendation without soil information can result in unnecessary input usage.
 
-### 🔍 1. AI Crop Disease Scanner
-* **Multimodal Leaf Pathology**: Snap or upload photos of diseased crop leaves. The application uses specialized multimodal vision prompts to perform an on-screen leaf quality audit before confirming any diagnosis.
-* **Granular Action Plans**: Receives a confidence score, bounding boxes for infected tissue, specific symptom match percentages, and structured treatment guidelines divided into **Organic** and **Chemical** methodologies (including dosage, estimated costs, and crop recovery advice).
-
-### 🎙️ 2. Real-Time Gemini Live Voice Chat (`LiveAudioChat`)
-* **Bidirectional Voice Streaming**: Rather than waiting for text generations, farmers can enter a live, hands-free voice call with **AgroCare Bot**.
-* **PCM 16kHz Streaming**: Converts microphone capture to raw 16-bit PCM chunks and streams them via WebSockets directly to `gemini-3.1-flash-live-preview`, resulting in real-time, bidirectional voice chat using the premium "Zephyr" voice model.
-
-### 📈 3. Mandi Price Arbitrage Analyzer
-* **Government Market API Proxy**: Fetches real-time, daily commodity rates directly from Indian mandi networks (data.gov.in), prioritizing Karnataka (Tumkur) with automated national fallback buffers.
-* **Haversine Distance Mapping**: Integrates the Geolocation API to find the user's distance to multiple active mandis across India, calculating transportation costs vs. market price gaps to show the exact **Arbitrage Profit Margin** of where to sell their crops.
-
-### 🧪 4. Soil Health Analysis
-* **NPK & pH Diagnostics**: Input simple soil test results (Nitrogen, Phosphorus, Potassium, pH, Moisture, Soil Type) to receive a comprehensive chemical composition assessment.
-* **Custom Fertilizer Prescriptions**: Outputs highly localized fertilizer mixtures, dosage per acre, application frequency, and suitable crop recommendations.
-
-### 📡 5. Geolocation-Based Suppliers & Weather
-* **Google Maps Grounding**: Automatically detects seed stores, fertilizer shops, and agricultural input distributors within a 25km radius of the farmer's coordinates.
-* **Google Search-Grounded Weather**: Delivers a 5-day agricultural weather forecast (temp, rain probability, wind, humidity) containing custom field-level advice (e.g., *"Delay pesticide spraying as rain is expected in 4 hours"*).
-
-### 🛡️ 6. Zero-Connectivity Failover (Gemma Edge AI)
-* **Model Router**: A global internet connectivity monitor. If cellular reception drops or Gemini Cloud rate limits are hit, the chat system seamlessly fails over to **Gemma Edge AI**.
-* **ICAR ITK-Knowledge Base**: Loaded with official Indigenous Technical Knowledge (ITK) guidelines curated by the Indian Council of Agricultural Research (ICAR). Provides offline remedies for pests (e.g., *Neemastra, Aloe Vera barriers*) and livestock ailments (e.g., *cattle Mastitis alum-honey cures*).
-
-### 👥 7. Community Hub & Schemes
-* **Farmers Forum**: A peer-to-peer discussions dashboard supporting posts, tag classifications (e.g., `#Disease`, `#Fertilizer`), and real-time client-side searching.
-* **Subsidies & Schemes Portal**: Instantly searches active government schemes and agricultural subsidies tailored to the farmer's crops.
-
----
-
-## 📽️ Demo
-
-* 🌐 **Live Web Application**: [https://ais-pre-3z5d4o2iwum7xjsn42vgqh-72897400089.asia-east1.run.app](https://ais-pre-3z5d4o2iwum7xjsn42vgqh-72897400089.asia-east1.run.app)
-* 🎥 **Demonstration & Automated Test Suite**: Full multi-agent orchestration test suite (`npx tsx scripts/test-agent-suite.ts`) covering 41/41 end-to-end verification cases.
-
----
-
-## 📸 Screenshots
-
-| 📱 Home Dashboard | 🔍 Leaf Diagnosis | 🎙️ Live Voice Chat |
-| :---: | :---: | :---: |
-| *Real-time weather, market trends, and quick action banners.* | *Multimodal computer vision scanning potato early blight.* | *Hands-free WebSocket voice interaction with Zephyr.* |
-
----
-
-## 🛠️ Technology Stack
-
-| Component | Technology | Detail |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS 4.0 | Single-page architecture, responsive mobile-first grid, high-contrast UI. |
-| **Animations**| Framer Motion (`motion/react`) | Smooth fluid transitions, tactile button interactions, live audio ripples. |
-| **Backend** | Node.js, Express, `ws` (WebSockets) | Static asset distribution, secure API proxies, high-concurrency audio routing. |
-| **Database** | Cloud Firestore, Firebase Auth, `better-sqlite3` | Unified session management, secure profile writing, localized file stores. |
-| **AI Processing**| Google Gen AI SDK (`@google/genai`) | Unified developer interface utilizing modern SDK routing structures. |
-| **APIs Used** | Geolocation API, Web Audio API, Web Speech API | Captures coordinates, records raw microphone PCM, decodes sound buffers. |
-
----
-
-## 🤖 Google AI Technologies Used
-
-### 🟢 Google Gemini Multimodal APIs
-1. **`gemini-3.5-flash` (Pathology & Grounding)**:
-   * **Pathology**: Processes crop photos, analyzing leaf surfaces against rigid diagnostic instructions to output schema-compliant JSON.
-   * **Weather Advice**: Grounded with Google Search to return real-time local conditions combined with custom farming-specific action items.
-   * **Nearby Suppliers**: Bound with Google Maps Grounding to return physical locations and ratings for surrounding agricultural retail outlets.
-2. **`gemini-3.1-flash-live-preview` (Real-Time Voice)**:
-   * Initiates bidirectional, low-latency WebSocket connections via Express. Streams farmer voice commands directly to the live auditory model and receives back raw audio responses in the "Zephyr" voice.
-3. **`gemini-2.5-flash-preview-tts` (Accessible Text-to-Speech)**:
-   * Decodes diagnostic text into rich synthesized spoken audio to support farmers with varying reading comprehension skills.
-
-### 🟢 Firebase Integration
-* **Firebase Authentication**: Implements secure user creation and profile state tracking.
-* **Cloud Firestore**: Holds persistent profiles (`/users`) and diagnosis histories (`/diagnoses`) protected by granular Firebase Security Rules.
-
----
-
-## 🏗️ System Architecture
+### AgroCare AI connects these decision layers.
 
 ```text
-                               +-----------------------------------+
-                               |            User Browser           |
-                               | (React 18, Tailwind, Framer-Motion)|
-                               +-----------------+-----------------+
-                                                 |
-                       HTTPS Requests            |    Bidirectional WebSockets
-                       & Assets Serving          |    (Audio PCM 16kHz)
-                                                 v
-                               +-----------------+-----------------+
-                               |       Express Backend (Cloud Run)  |
-                               +--------+-----------------+--------+
-                                        |                 |
-                   DB Writes / Auth     |                 |  Orchestrated
-                                        v                 |  Direct SDK Calls
-                               +--------+--------+        |
-                               |  Firebase Suite |        |
-                               |  - Auth         |        |
-                               |  - Firestore    |        |
-                               +-----------------+        v
-                                                 +--------+--------+
-                                                 |  Gemini APIs    |
-                                                 |  (@google/genai)|
-                                                 +---+----+----+---+
-                                                     |    |    |
-                      +------------------------------+    |    +-----------------------------+
-                      |                                   |                                  |
-                      v                                   v                                  v
-         +------------+------------+         +------------+------------+         +------------+------------+
-         |     Multimodal Vision   |         |      Live Voice API     |         |     Grounding Services  |
-         |    (gemini-3.5-flash)   |         | (gemini-3.1-flash-live) |         | - Google Search         |
-         |    - Leaf pathology     |         | - Low-latency streaming |         | - Google Maps           |
-         +-------------------------+         +-------------------------+         +-------------------------+
+                         🌾 FARMER
+                             │
+                             ▼
+                  ┌─────────────────────┐
+                  │   AGROCARE AI       │
+                  │ Decision Intelligence│
+                  └──────────┬──────────┘
+                             │
+       ┌─────────────┬───────┼────────┬─────────────┐
+       ▼             ▼       ▼        ▼             ▼
+   📷 Vision      🌦️ Weather 🧪 Soil  📈 Market    📚 ITK
+       │             │       │        │             │
+       └─────────────┴───────┼────────┴─────────────┘
+                             ▼
+                  🧠 CONTEXT-AWARE REASONING
+                             │
+                             ▼
+                    ⚙️ ACTION PLANNING
+                             │
+                             ▼
+                 👨‍🌾 FARMER-READY ADVICE
+```
+
+**The core idea: AgroCare does not stop at “What is wrong?” — it helps answer “What should I do next?”**
+
+---
+
+# 🎯 The Problem
+
+Smallholder farmers frequently make decisions with incomplete information.
+
+### 01 — Diagnostic Delay 🔍
+
+Crop disease identification may happen only after visible symptoms become severe or after expert consultation.
+
+### 02 — Fragmented Information 📱
+
+Farmers need to move between different sources for:
+
+* Crop diagnosis
+* Weather
+* Soil
+* Market prices
+* Suppliers
+* Government schemes
+* Agricultural practices
+
+### 03 — Context-Blind Recommendations ⚠️
+
+The same treatment is not necessarily appropriate under every:
+
+* Weather condition
+* Crop stage
+* Soil condition
+* Disease severity
+* Geographic location
+
+### 04 — Language & Accessibility Barrier 🗣️
+
+Agricultural technology is often heavily text-driven, creating barriers for users with limited digital or English literacy.
+
+### 05 — Connectivity Constraints 📡
+
+Agricultural users may operate in locations where reliable connectivity cannot always be assumed.
+
+---
+
+# 💡 Our Solution
+
+**AgroCare AI is a multimodal, context-aware agricultural intelligence platform.**
+
+Instead of providing isolated tools, it creates a connected decision workflow:
+
+```text
+OBSERVE
+   ↓
+UNDERSTAND
+   ↓
+FUSE CONTEXT
+   ↓
+REASON
+   ↓
+PLAN ACTION
+   ↓
+EXPLAIN
+   ↓
+FARMER ACTS
+```
+
+### AgroCare combines:
+
+| Input           | Intelligence           | Outcome                      |
+| --------------- | ---------------------- | ---------------------------- |
+| 📷 Crop Image   | Multimodal Vision      | Disease / symptom assessment |
+| 🌦️ Weather     | Weather intelligence   | Weather-aware action         |
+| 🧪 Soil Data    | Soil reasoning         | Fertilizer guidance          |
+| 📈 Mandi Prices | Market intelligence    | Selling opportunity          |
+| 📍 Location     | Geo intelligence       | Nearby suppliers / markets   |
+| 📚 ITK          | Agricultural knowledge | Indigenous practices         |
+| 🎙️ Voice       | Conversational AI      | Hands-free interaction       |
+| 🌐 Connectivity | Model routing          | Cloud / local fallback       |
+
+---
+
+# 🧠 What Makes AgroCare Different?
+
+## 1. Multimodal Agricultural Intelligence
+
+AgroCare accepts more than text.
+
+```text
+📷 Images
+🎙️ Voice
+📍 Location
+🌦️ Weather
+🧪 Soil Parameters
+📈 Market Data
+📚 Agricultural Knowledge
+```
+
+These inputs can be combined to produce a more contextual recommendation.
+
+---
+
+## 2. Diagnosis → Decision → Action
+
+Most crop-diagnosis systems stop at:
+
+> **“This crop may have Disease X.”**
+
+AgroCare aims to continue the workflow:
+
+```text
+Crop Image
+    ↓
+Image Quality Check
+    ↓
+Disease / Symptom Analysis
+    ↓
+Confidence Assessment
+    ↓
+Context Collection
+    ├── Weather
+    ├── Crop / Soil
+    ├── Location
+    └── Agricultural Knowledge
+    ↓
+Treatment / Management Options
+    ↓
+Weather & Context Safety Check
+    ↓
+Action Recommendation
+```
+
+This transforms AI from a **diagnostic chatbot** into a **decision-support system**.
+
+---
+
+# 🤖 AI & Agentic Architecture
+
+AgroCare is designed around specialized decision capabilities rather than one monolithic AI response.
+
+```text
+                         👨‍🌾 FARMER
+                              │
+                    Image / Voice / Text
+                              │
+                              ▼
+                  ┌──────────────────────┐
+                  │   CONTEXT ENGINE     │
+                  └──────────┬───────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+   📷 Evidence          🌦️ Context          📚 Knowledge
+   Collector            Fusion              Retrieval
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             ▼
+                    🧠 DECISION ENGINE
+                             │
+                             ▼
+                       🛡️ SAFETY GATE
+                             │
+                             ▼
+                     ⚙️ ACTION PLANNER
+                             │
+                             ▼
+                       👨‍🌾 ADVISORY
+```
+
+### Core intelligence layers
+
+**Evidence Collection**
+
+Collects observations from images, farmer inputs and connected data sources.
+
+**Evidence Fusion**
+
+Combines multiple evidence sources instead of relying on a single signal.
+
+**Context Engine**
+
+Adds environmental and operational context such as location, weather, crop stage and soil conditions.
+
+**Decision Engine**
+
+Produces a structured decision from available evidence and context.
+
+**Safety Gate**
+
+Checks whether an action recommendation should be allowed, modified or escalated.
+
+**Action Planner**
+
+Converts the decision into practical farmer-oriented steps.
+
+**Decision Trace**
+
+Maintains the reasoning path behind a recommendation for transparency and debugging.
+
+> **Design principle:** Every recommendation should be explainable as a chain of evidence → context → decision → action.
+
+---
+
+# 🔍 Core Features
+
+## 01 — 📷 AI Crop Disease Scanner
+
+Upload or capture a crop image and receive structured AI analysis.
+
+### Pipeline
+
+```text
+Camera / Upload
+      ↓
+Image Quality Validation
+      ↓
+Multimodal Vision
+      ↓
+Symptom Analysis
+      ↓
+Confidence Assessment
+      ↓
+Structured Diagnosis
+      ↓
+Treatment Options
+```
+
+The interface can present:
+
+* Disease / condition
+* Confidence
+* Visible symptoms
+* Affected region
+* Organic management options
+* Chemical management options
+* Dosage guidance where available
+* Recovery / monitoring advice
+
+---
+
+## 02 — 🌦️ Context-Aware Weather Advisory
+
+Weather is not displayed merely as a forecast.
+
+AgroCare attempts to convert weather information into **agricultural action**.
+
+Example:
+
+```text
+Rain expected soon
+        ↓
+Spraying may be ineffective
+        ↓
+Recommendation
+        ↓
+Delay application
+        ↓
+Reassess after suitable weather
+```
+
+This makes weather data operational rather than informational.
+
+---
+
+## 03 — 📈 Mandi Price & Arbitrage Intelligence
+
+AgroCare integrates government market-price information and combines it with geographic calculations.
+
+```text
+Crop
+ ↓
+Current Market Prices
+ ↓
+Nearby Mandis
+ ↓
+Distance Calculation
+ ↓
+Estimated Transport Cost
+ ↓
+Price Difference
+ ↓
+Potential Selling Advantage
+```
+
+Instead of simply saying:
+
+> “Mandi A: ₹X/kg”
+
+the system aims to answer:
+
+> **“Considering location and distance, which market may provide the better selling opportunity?”**
+
+---
+
+## 04 — 🧪 Soil Health Analysis
+
+Farmers can provide:
+
+* Nitrogen
+* Phosphorus
+* Potassium
+* pH
+* Moisture
+* Soil type
+
+AgroCare converts these values into understandable recommendations including:
+
+* Soil condition
+* Nutrient interpretation
+* Fertilizer guidance
+* Application considerations
+* Crop suitability
+
+---
+
+## 05 — 📍 Nearby Agricultural Suppliers
+
+Using location intelligence, AgroCare can help discover nearby:
+
+* Seed suppliers
+* Fertilizer stores
+* Agricultural input dealers
+* Other relevant agricultural businesses
+
+This reduces the gap between:
+
+**Recommendation → Procurement**
+
+---
+
+## 06 — 📚 ITK-First Agricultural Knowledge
+
+AgroCare incorporates Indigenous Technical Knowledge as a knowledge layer.
+
+Instead of automatically treating synthetic intervention as the first option, the system can surface relevant traditional / indigenous agricultural practices where applicable.
+
+```text
+Farmer Problem
+      ↓
+Evidence
+      ↓
+ITK Knowledge
+      ↓
+Context Validation
+      ↓
+Recommended Practice
+```
+
+This creates a bridge between:
+
+**Traditional agricultural knowledge + modern AI**
+
+---
+
+## 07 — 🎙️ Voice-First Farmer Interaction
+
+Farmers can interact through voice rather than relying entirely on typing.
+
+### Voice pipeline
+
+```text
+🎙️ Farmer Speech
+       ↓
+   Live Audio
+       ↓
+  Gemini Live
+       ↓
+Agricultural Context
+       ↓
+ Spoken Response
+```
+
+The platform supports multilingual interaction including:
+
+* 🇬🇧 English
+* 🇮🇳 Hindi
+* 🇮🇳 Kannada
+
+The objective is simple:
+
+> **Technology should adapt to the farmer — not the farmer to the technology.**
+
+---
+
+## 08 — 📡 Resilient / Local-First Architecture
+
+Connectivity should not become a single point of failure.
+
+AgroCare includes connectivity-aware model routing and local fallback capabilities.
+
+```text
+             Request
+                │
+                ▼
+       ┌─────────────────┐
+       │ Connectivity OK?│
+       └───────┬─────────┘
+          YES  │  NO
+           ▼  │   ▼
+       Cloud AI   Local
+           │     Fallback
+           └──┬──────┘
+              ▼
+          Response
+```
+
+This architecture is designed around **graceful degradation** rather than simply failing when the network disappears.
+
+---
+
+# 🏪 From Farm Diagnosis to Farm Economics
+
+AgroCare does not treat agriculture as only a disease-detection problem.
+
+It connects:
+
+```text
+              🌱 FARM PRODUCTION
+                     │
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼
+    Disease        Soil         Weather
+       │             │             │
+       └─────────────┼─────────────┘
+                     ▼
+               FARM DECISION
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+     🧴 INPUTS              📈 OUTPUT
+          │                     │
+          ▼                     ▼
+     Suppliers               Mandis
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+               FARMER VALUE
+```
+
+This creates a broader **farm-to-action intelligence loop**.
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         👨‍🌾 FARMER
+                             │
+                  ┌──────────┼──────────┐
+                  │          │          │
+                Image       Voice      Text
+                  │          │          │
+                  └──────────┼──────────┘
+                             ▼
+                  ┌─────────────────────┐
+                  │   React Frontend    │
+                  │ TypeScript + Vite   │
+                  └──────────┬──────────┘
+                             │
+                       HTTPS / WebSocket
+                             │
+                             ▼
+                  ┌─────────────────────┐
+                  │   Express Backend   │
+                  │    API Gateway      │
+                  └──────────┬──────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+   ┌────────────┐     ┌────────────┐     ┌────────────┐
+   │ Gemini AI  │     │ Firebase   │     │ Government │
+   │ Services   │     │ Services   │     │ Data APIs  │
+   └─────┬──────┘     └────────────┘     └────────────┘
+         │
+   ┌─────┼──────────────┬──────────────┐
+   ▼     ▼              ▼              ▼
+ Vision Voice       Search Grounding   Maps
+   │     │              │              │
+   └─────┴──────────────┴──────────────┘
+                    │
+                    ▼
+          🧠 Decision Intelligence
+                    │
+          ┌─────────┼─────────┐
+          ▼         ▼         ▼
+       Safety     Action    Explanation
+        Gate      Planner     / Trace
+          │         │         │
+          └─────────┼─────────┘
+                    ▼
+              👨‍🌾 FARMER ACTION
 ```
 
 ---
 
-## 🔄 Application Workflows
+# 🔄 End-to-End Example
 
-### A. The Diagnostic Pipeline (Camera Mode)
-1. **User Action**: The farmer launches the Crop Disease Scanner, selects a camera feed, and captures a photo of a diseased leaf.
-2. **Quality Audit**: The image is compressed into a Base64 string. The React client calls our secure backend API (`/api/diagnose`).
-3. **Inference & Rules Checking**: The backend sends the payload to `gemini-3.5-flash` with strict diagnostic rules. Gemini checks if the image is too blurry, dark, or contains multiple leaves.
-4. **JSON Structuring**: If the audit passes, Gemini parses the leaf, calculates a confidence percentage using the **4-Factor Method**, compiles treatments (Organic & Chemical), and structures the response into valid JSON.
-5. **Interactive UI Update**: React receives the structured JSON, rendering the coordinates on the canvas and updating the diagnosis dashboard.
+### Scenario: Farmer detects suspicious spots on a crop
 
-### B. The Conversational Audio Pipeline (Gemini Live API)
-1. **Initiation**: The user clicks the **Talk to AI** microphone button.
-2. **WebSocket Handshake**: React opens a WebSocket connection to the backend proxy at `/api/live-ws`, appending the crop diagnostic state as metadata.
-3. **Microphone Capture**: The browser starts recording via `navigator.mediaDevices.getUserMedia`. A `ScriptProcessorNode` extracts the stream at 16kHz, converts float samples into raw 16-bit signed PCM integers, and pushes Base64 audio blocks to the backend.
-4. **Inference & Audio Generation**: The Express server streams these PCM packets directly to `gemini-3.1-flash-live-preview`. The Live API processes the auditory inputs, incorporating the diagnostic metadata into its system instructions.
-5. **Low-Latency Playback**: As the model synthesizes speech, the server relays the audio chunks back to the client. The frontend decodes the packets using `AudioContext` and plays them seamlessly through the user's speakers.
+```text
+STEP 1
+Farmer captures crop image
+        ↓
+STEP 2
+AgroCare validates image quality
+        ↓
+STEP 3
+Multimodal AI analyzes symptoms
+        ↓
+STEP 4
+System evaluates confidence
+        ↓
+STEP 5
+Weather + location + crop context added
+        ↓
+STEP 6
+Relevant agricultural knowledge retrieved
+        ↓
+STEP 7
+Safety checks applied
+        ↓
+STEP 8
+Action plan generated
+        ↓
+STEP 9
+Farmer receives explanation
+        ↓
+STEP 10
+Farmer can continue through voice,
+supplier discovery or market tools
+```
+
+### The important part:
+
+**The diagnosis becomes the beginning of the workflow, not the end.**
 
 ---
 
-## 💻 Installation & Local Development
+# 📊 Validation & Testing
 
-### Prerequisites
-- **Node.js** v18 or newer
-- **npm** (comes with Node)
-- **Google Gemini API Key** (Get one from [Google AI Studio](https://aistudio.google.com/))
-- **Firebase Project Credentials** (Optional, falls back safely to in-memory databases if unconfigured)
+AgroCare is being developed with a verification-first approach.
 
-### Step 1: Clone the Repository
+### Current automated validation
+
+* ✅ TypeScript compilation
+* ✅ End-to-end agent orchestration test suite
+* ✅ Structured API response validation
+* ✅ Diagnostic workflow testing
+* ✅ Connectivity / fallback testing
+* ✅ Core feature integration testing
+
+### Current project verification
+
+> **41/41 end-to-end agent-suite verification cases passing** according to the current project test suite.
+
+Run:
+
 ```bash
-git clone https://github.com/spacecraftech1/agrocare-ai.git
-cd agrocare-ai
+npx tsx scripts/test-agent-suite.ts
 ```
 
-### Step 2: Install Dependencies
+For additional TypeScript validation:
+
 ```bash
+npx tsc --noEmit
+```
+
+> Keep these numbers synchronized with the actual repository before every hackathon submission.
+
+---
+
+# 🧪 Engineering Principles
+
+AgroCare is built around five engineering principles:
+
+### 1. Context Before Recommendation
+
+Do not make a recommendation using one isolated signal when additional context is available.
+
+### 2. Evidence Before Confidence
+
+AI output should be tied to observable evidence.
+
+### 3. Safety Before Action
+
+Potentially risky actions should pass through explicit safety checks.
+
+### 4. Graceful Degradation
+
+Cloud failure or connectivity loss should not unnecessarily terminate the entire user workflow.
+
+### 5. Explainability
+
+A farmer should be able to understand **why** an action was recommended.
+
+---
+
+# 🌍 Social & Economic Impact
+
+AgroCare targets multiple layers of agricultural decision-making.
+
+| Challenge                      | AgroCare Response                |
+| ------------------------------ | -------------------------------- |
+| Delayed disease identification | Multimodal crop analysis         |
+| Poor weather decisions         | Weather-aware advisories         |
+| Fertilizer uncertainty         | Soil-based recommendations       |
+| Market information asymmetry   | Mandi price intelligence         |
+| Input discovery                | Geo-based suppliers              |
+| Language barriers              | Multilingual + voice interaction |
+| Connectivity limitations       | Local / fallback architecture    |
+| Knowledge loss                 | ITK knowledge integration        |
+| Fragmented information         | Unified farmer workflow          |
+
+### Long-term vision
+
+> **Build an agricultural intelligence layer that helps farmers move from reactive problem-solving to proactive decision-making.**
+
+---
+
+# 🏆 Why This Can Scale
+
+AgroCare is designed as a modular platform.
+
+### Today
+
+```text
+Crop Diagnosis
+Weather
+Soil
+Market
+Suppliers
+ITK
+Voice
+Schemes
+```
+
+### Next
+
+```text
+        AgroCare Intelligence Layer
+                  │
+     ┌────────────┼────────────┐
+     ▼            ▼            ▼
+    IoT          Drone        Satellite
+     │            │            │
+     └────────────┼────────────┘
+                  ▼
+          Precision Agriculture
+```
+
+Future integrations can include:
+
+* IoT soil sensors
+* Drone imagery
+* Satellite observations
+* Crop growth monitoring
+* Automated field alerts
+* PWA offline capabilities
+* On-device inference
+* Farm-level historical analytics
+
+---
+
+# 🗺️ Roadmap
+
+### Phase 1 — Intelligent Advisory
+
+* [x] Multimodal crop analysis
+* [x] Weather intelligence
+* [x] Market intelligence
+* [x] Soil analysis
+* [x] Supplier discovery
+* [x] Voice interaction
+* [x] Multilingual interface
+* [x] ITK knowledge layer
+* [x] Firebase integration
+* [x] Connectivity-aware architecture
+
+### Phase 2 — Edge & Offline
+
+* [ ] Browser-based local inference
+* [ ] PWA offline mode
+* [ ] Expanded local knowledge cache
+* [ ] Offline-first diagnosis history
+
+### Phase 3 — Connected Agriculture
+
+* [ ] Bluetooth soil sensors
+* [ ] IoT telemetry
+* [ ] Drone imagery
+* [ ] Field-level monitoring
+* [ ] Automated anomaly detection
+
+### Phase 4 — Autonomous Farm Intelligence
+
+* [ ] Continuous field monitoring
+* [ ] Multi-agent farm planning
+* [ ] Predictive crop-risk alerts
+* [ ] Input optimization
+* [ ] Market timing intelligence
+* [ ] Farm-level decision memory
+
+---
+
+# 🛠️ Technology Stack
+
+| Layer          | Technology                        |
+| -------------- | --------------------------------- |
+| Frontend       | React, TypeScript, Vite           |
+| UI             | Tailwind CSS                      |
+| Animation      | Framer Motion                     |
+| Backend        | Node.js, Express                  |
+| Real-time      | WebSockets                        |
+| AI             | Google Gemini / Google Gen AI SDK |
+| Voice          | Gemini Live + Web Audio           |
+| Authentication | Firebase Authentication           |
+| Database       | Cloud Firestore                   |
+| Local Storage  | SQLite / local fallback           |
+| Market Data    | Government market APIs            |
+| Location       | Geolocation + Google Maps         |
+| Knowledge      | ITK knowledge base                |
+| Deployment     | Cloud-based deployment            |
+
+---
+
+# 📂 Project Structure
+
+```text
+agrocare-ai/
+│
+├── server.ts
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── firestore.rules
+│
+├── src/
+│   ├── App.tsx
+│   ├── main.tsx
+│   ├── types.ts
+│   ├── constants.ts
+│   ├── i18n.ts
+│   │
+│   ├── components/
+│   │   ├── CameraDiagnosis.tsx
+│   │   ├── LiveAudioChat.tsx
+│   │   ├── ArbitrageAnalyzer.tsx
+│   │   ├── Market.tsx
+│   │   ├── WeatherForecast.tsx
+│   │   ├── SoilAnalysis.tsx
+│   │   ├── SchemeFinder.tsx
+│   │   └── Community.tsx
+│   │
+│   ├── services/
+│   │   ├── connectivity.ts
+│   │   ├── gemini.ts
+│   │   ├── gemma.ts
+│   │   ├── marketApi.ts
+│   │   └── weatherService.ts
+│   │
+│   ├── data/
+│   │   ├── itk-knowledge.ts
+│   │   ├── mandi-data.json
+│   │   └── market_data.json
+│   │
+│   └── locales/
+│       ├── en/
+│       ├── hi/
+│       └── kn/
+│
+└── scripts/
+    └── test-agent-suite.ts
+```
+
+---
+
+# 🚀 Run Locally
+
+## Prerequisites
+
+* Node.js 18+
+* npm
+* Google Gemini API key
+* Firebase project credentials
+* Required external API credentials
+
+## Installation
+
+```bash
+git clone https://github.com/sujanpatel-ks/agrocare-Solutions-SHIH-TID-524.git
+
+cd agrocare-Solutions-SHIH-TID-524
+
 npm install
 ```
 
-### Step 3: Configure Environment Variables
-Create a `.env` file in the root directory:
+## Environment Variables
+
+Create `.env`:
+
 ```env
-# Google Gemini API key (Required for server-side processing)
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
 
-# Government Mandi Price API key (Optional fallback key included)
-VITE_DATA_GOV_IN_API_KEY=your_government_data_api_key
+VITE_DATA_GOV_IN_API_KEY=your_data_gov_api_key
 
-# Google Maps/Places API key for supplier rendering
-VITE_GOOGLE_PLACES_API_KEY=your_google_maps_api_key
+VITE_GOOGLE_PLACES_API_KEY=your_google_places_api_key
 ```
 
-### Step 4: Run the Development Server
+## Development
+
 ```bash
 npm run dev
 ```
-The application will launch on `http://localhost:3000`.
 
-### Step 5: Build for Production
-To bundle the frontend assets and compile the TypeScript backend Express server into a standalone CJS package:
+## Production Build
+
 ```bash
 npm run build
 ```
-Start the production container server:
+
 ```bash
 npm run start
 ```
 
 ---
 
-## 📂 Project Structure
+# 🎥 Demo
 
-```text
-agrocare-ai/
-├── server.ts                  # Express Backend & WebSocket Server (Cloud Run entry)
-├── vite.config.ts             # Vite build configuration (Tailwind & React plugins)
-├── tsconfig.json              # TypeScript compilation specifications
-├── package.json               # Package dependencies & scripts
-├── firebase-blueprint.json    # Firestore initial schema blueprints
-├── firestore.rules            # Firestore security rules
-├── src/                       # Frontend Source Directory
-│   ├── main.tsx               # Client entry point
-│   ├── App.tsx                # SPA state manager & layout engine
-│   ├── AuthProvider.tsx       # Firebase Authentication Context
-│   ├── types.ts               # Shared TypeScript schemas, interfaces, & enums
-│   ├── constants.ts           # Unified farming constants & diagnostic lists
-│   ├── i18n.ts                # Internationalization config (EN, HI, KN)
-│   ├── index.css              # Global styles & Tailwind CSS imports
-│   ├── components/            # Interactive UI Components
-│   │   ├── CameraDiagnosis.tsx   # Leaf photography controller
-│   │   ├── LiveAudioChat.tsx     # Gemini Live bidirectional PCM recorder
-│   │   ├── ArbitrageAnalyzer.tsx # Localized mandi distance & profit calculator
-│   │   ├── Market.tsx            # Mandi price list and API loader
-│   │   ├── WeatherForecast.tsx   # Google Search weather advisory cards
-│   │   ├── SoilAnalysis.tsx      # Soil health calculator
-│   │   ├── SchemeFinder.tsx      # Subsidy and grants registry
-│   │   └── Community.tsx         # Farmers forum bulletin
-│   ├── services/              # API Integration Services
-│   │   ├── connectivity.ts       # Internet availability monitor
-│   │   ├── gemini.ts             # Direct Vision, TTS, Search, and Maps adapters
-│   │   ├── gemma.ts              # Model Router & Local Offline Edge AI (Gemma-2B)
-│   │   ├── marketApi.ts          # Government price client proxy
-│   │   └── weatherService.ts     # Location-based forecast fetcher
-│   ├── data/                  # Offline Fallback Databases
-│   │   ├── itk-knowledge.ts      # ICAR Indigenous Technical Knowledge Database
-│   │   ├── mandi-data.json       # Indian commodity rates fallback database
-│   │   └── market_data.json      # High-density regional crop price index
-│   └── locales/               # Static Localization Files
-│       ├── en/                   # English catalog
-│       ├── hi/                   # Hindi catalog
-│       └── kn/                   # Kannada catalog
+### 🌐 Live Application
+
+**[Add your final verified live deployment link here]**
+
+### 🎬 Demo Video
+
+**[Add 2–3 minute demo video here]**
+
+### 📊 Architecture
+
+**[Add architecture diagram image here]**
+
+### 📸 Product Screenshots
+
+Recommended showcase:
+
+| Dashboard      | AI Diagnosis   |
+| -------------- | -------------- |
+| Add screenshot | Add screenshot |
+
+| Market Intelligence | Voice Assistant |
+| ------------------- | --------------- |
+| Add screenshot      | Add screenshot  |
+
+| Soil Analysis  | Weather Advisory |
+| -------------- | ---------------- |
+| Add screenshot | Add screenshot   |
+
+---
+
+# ⚡ Judge's 60-Second Journey
+
+If you are evaluating AgroCare for the first time:
+
+### 01
+
+Open the live application.
+
+### 02
+
+Upload a crop image.
+
+### 03
+
+Observe the AI diagnostic workflow.
+
+### 04
+
+Open the weather context.
+
+### 05
+
+Check the market intelligence.
+
+### 06
+
+Try the voice assistant.
+
+### 07
+
+Switch the language.
+
+### 08
+
+Explore the soil / supplier / agricultural knowledge modules.
+
+### 09
+
+Run the automated validation suite.
+
+```bash
+npx tsx scripts/test-agent-suite.ts
 ```
 
----
+### 10
 
-## ♿ Accessibility & Inclusivity
+Ask the final question:
 
-* **Multilingual Seamlessness**: The app's localization is handled entirely through `i18next`, matching UI languages with model prompts. Swapping languages changes both the user interface and the AI prompts.
-* **Low-Literacy Design Pattern**: Every primary card features an interactive voice synthesis button. If a farmer has difficulty reading advice or complex chemical guidelines, they can simply tap "Listen" to hear Gemini read it aloud in their preferred dialect.
-* **Tactile Visual Layout**: Employs earthy, natural colors (`bg-soil`, `text-earth`) and intuitive vector iconography from Lucide React to create an instant sense of trust and ease-of-use.
+> **“How does AgroCare turn an agricultural observation into an actionable decision?”**
 
----
-
-## 🚀 Future Roadmap
-
-* [ ] **On-Device Local WebAssembly Inference**: Embed a compressed, optimized 2-billion parameter Gemma model directly in the browser using MediaPipe WebAssembly. This allows fully interactive local text generation with zero network hops.
-* [ ] **Progressive Web App (PWA) Offline Isolation**: Package the app with custom service workers and cache policies, enabling farmers to boot up, view diagnostic history, and consult Gemma offline without ever opening a cell network.
-* [ ] **IoT Soil Probe Synchronization**: Integrate Bluetooth Web API structures to receive NPK, moisture, and pH values directly from hardware soil sensors, removing manual data entry entirely.
+That is the core of the project.
 
 ---
 
-## 🤝 Contributing
+# 🔐 Security & Responsible AI
 
-We welcome contributions to expand AgroCare AI's accessibility and reach:
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/amazing-feature`.
-3. Commit changes: `git commit -m 'Add amazing feature'`.
-4. Push to branch: `git push origin feature/amazing-feature`.
-5. Open a Pull Request detailing your enhancements.
+AgroCare follows a safety-oriented approach to agricultural AI.
+
+### API Security
+
+Sensitive API credentials should remain server-side wherever possible.
+
+### Structured AI Output
+
+AI services are expected to return structured data for predictable UI rendering.
+
+### Input Validation
+
+Images and user inputs should be validated before processing.
+
+### Safety Gate
+
+Recommendations involving potentially consequential agricultural actions should be subjected to explicit safety checks.
+
+### Human Decision Authority
+
+AgroCare is a **decision-support system**, not a replacement for qualified agricultural experts or government advisories.
 
 ---
 
-## 📄 License
+# 🤝 Responsible Agricultural Intelligence
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+AI should not blindly replace agricultural knowledge.
+
+AgroCare follows a hybrid philosophy:
+
+```text
+        AI
+        +
+ Government Data
+        +
+ Agricultural Knowledge
+        +
+ Local / Indigenous Practices
+        +
+ Environmental Context
+        +
+ Human Judgment
+        ↓
+ Responsible Decision Support
+```
+
+The goal is not:
+
+> **“AI knows everything.”**
+
+The goal is:
+
+> **“AI helps the farmer make a better-informed decision.”**
 
 ---
 
-## 👤 Author
+# 🌱 Vision
 
-* **Sujan Technologies / Team AgroCare**
-* 📧 Email: spacecraftech1@gmail.com
-* 💻 GitHub: [@spacecraftech1](https://github.com/spacecraftech1)
+### From a farming assistant → to an agricultural intelligence infrastructure.
+
+We envision AgroCare evolving from an application into a continuously learning decision layer connecting:
+
+```text
+Farmers
+   ↕
+AI
+   ↕
+IoT
+   ↕
+Weather
+   ↕
+Markets
+   ↕
+Agricultural Knowledge
+   ↕
+Government Ecosystem
+```
+
+The long-term objective is to make agricultural intelligence:
+
+**Accessible. Context-aware. Explainable. Resilient. Actionable.**
 
 ---
 
-## 💖 Acknowledgements
+# 👥 Team
 
-* **Google DeepMind AI Hackathon 2026** for providing the inspiration and evaluation space.
-* **Indian Council of Agricultural Research (ICAR)** for curate and open-sourcing the invaluable Indigenous Technical Knowledge (ITK) database.
-* **Ministry of Electronics & Information Technology (MeitY)** for exposing Indian mandi price indices via data.gov.in.
-* **The Google Gemini Team** for publishing the ultra-low latency Gemini Live WebSockets API, enabling the next generation of voice-based accessibility.
+### Team AgroCare
+
+**Sujan Technologies**
+
+Building technology for practical agricultural decision support.
+
+📧 [spacecraftech1@gmail.com](mailto:spacecraftech1@gmail.com)
+
+💻 GitHub: [@spacecraftech1](https://github.com/spacecraftech1)
+
+---
+
+# 🙏 Acknowledgements
+
+We acknowledge the technologies and public resources that make this project possible, including:
+
+* Google Gemini / Google AI
+* Google Maps and location services
+* Firebase
+* Government agricultural data services
+* Indian Council of Agricultural Research (ICAR)
+* Indigenous Technical Knowledge resources
+* Open-source software community
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
+
+See [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+# 🌾 AgroCare AI
+
+### **Observe → Understand → Decide → Act**
+
+**Building the intelligence layer for the next generation of agriculture.**
+
+⭐ Star the repository if you believe technology can make farming more informed, accessible and resilient.
+
+</div>
