@@ -1,10 +1,60 @@
+import { ConfidenceAssessment } from '../lib/confidenceHandler';
+export type { ConfidenceAssessment };
+
+export interface WhereToFetchInfo {
+  storeType: string;
+  recommendedShop: string;
+  searchQuery: string;
+  distance?: string;
+  category: 'Bio-Organic' | 'Chemical Stockist' | 'Fertilizer Depot';
+}
+
+export interface ApplicationDueInfo {
+  dueDate: string;
+  dueWindow: string;
+  recommendedTiming: string;
+  nextRoundDue: string;
+  priority: 'Immediate (Today)' | 'Within 24-48 Hours' | 'Scheduled Routine';
+  weatherSafe: boolean;
+}
+
 export interface TreatmentDetails {
   name: string;
   nameHi: string;
+  nameKn?: string;
   dosage: string;
   frequency: string;
   precautions: string;
   costEstimate: string;
+  imageUrl?: string;
+  brand?: string;
+  packagingSize?: string;
+  modeOfAction?: string;
+  itkSource?: string;
+  chemicalComposition?: string;
+  fertilizerCategory?: 'Organic Base' | 'Chemical Base' | 'Inorganic Base';
+  whereToFetch?: WhereToFetchInfo;
+}
+
+export interface WeatherAdvisory {
+  canSprayNow: boolean;
+  warningLevel: 'safe' | 'caution' | 'danger';
+  title: string;
+  message: string;
+  optimalTiming: string;
+}
+
+export interface AlternativeDiagnosis {
+  diseaseName: string;
+  probability: number;
+  keyDistinction: string;
+}
+
+export interface NutrientDeficiency {
+  nutrient: string;
+  deficiencyType: string;
+  keySymptom: string;
+  remedy: string;
 }
 
 export interface DiagnosisResult {
@@ -12,9 +62,12 @@ export interface DiagnosisResult {
   disease: string;
   diseaseHi: string;
   diseaseKn: string;
+  scientificName?: string;
   confidence: number;
   description: string;
   symptoms: string[];
+  symptomsExpected?: string[];
+  symptomMatchPercentage?: number;
   prevention: {
     immediate: string[];
     longTerm: string[];
@@ -22,17 +75,94 @@ export interface DiagnosisResult {
   treatment: {
     organic: TreatmentDetails;
     chemical: TreatmentDetails;
+    inorganic?: TreatmentDetails;
   };
+  applicationDue?: ApplicationDueInfo;
   actionRequired?: string;
-  severity: 'Low' | 'Medium' | 'High';
+  severity: 'Low' | 'Medium' | 'High' | 'Severe';
   boundingBox?: [number, number, number, number]; // [ymin, xmin, ymax, xmax] normalized 0-1000
+  confidenceAssessment?: ConfidenceAssessment;
+  weatherAdvisory?: WeatherAdvisory;
+  alternativeDiagnoses?: AlternativeDiagnosis[];
+  nutrientDeficiency?: NutrientDeficiency;
+  icarAdvisory?: string;
 }
 
-export async function diagnoseCrop(imageBase64: string): Promise<DiagnosisResult> {
+function compressImage(base64Str: string, maxWidth = 1024, maxHeight = 1024, quality = 0.75): Promise<string> {
+  return new Promise((resolve) => {
+    if (!base64Str || !base64Str.startsWith('data:image')) {
+      resolve(base64Str);
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = base64Str;
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(base64Str);
+        }
+      } catch (err) {
+        console.warn("Error compressing image on canvas:", err);
+        resolve(base64Str);
+      }
+    };
+    img.onerror = (err) => {
+      console.warn("Failed to load image for compression:", err);
+      resolve(base64Str);
+    };
+  });
+}
+
+export interface DiagnoseCropOptions {
+  crop?: string;
+  region?: string;
+  growthStage?: string;
+  weather?: {
+    temperature: number;
+    humidity: number;
+    rainfallProb: number;
+    condition: string;
+  };
+  soilType?: string;
+}
+
+export async function diagnoseCrop(imageBase64: string, options?: DiagnoseCropOptions): Promise<DiagnosisResult> {
+  const compressedBase64 = await compressImage(imageBase64);
   const response = await fetch("/api/gemini/diagnose", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageBase64 }),
+    body: JSON.stringify({
+      imageBase64: compressedBase64,
+      crop: options?.crop,
+      region: options?.region,
+      growthStage: options?.growthStage,
+      weather: options?.weather,
+      soilType: options?.soilType
+    }),
   });
   if (!response.ok) {
     throw new Error(`Failed to diagnose crop: ${response.statusText}`);
@@ -197,3 +327,60 @@ export async function analyzeSoil(data: SoilData): Promise<SoilAnalysisResult> {
   }
   return response.json();
 }
+
+export interface AgentResponse {
+  status: 'success' | 'error' | 'escalation' | 'fallback';
+  crop?: string;
+  issue?: string;
+  risk_level: 'low' | 'medium' | 'high';
+  confidence: number;
+  evidence: string[];
+  reasoning_summary: string;
+  recommended_actions: string[];
+  weather_gate: { blocked: boolean; reason: string };
+  itk: Array<{ practice: string; description: string }>;
+  supplier: { name: string; distance: string; contact?: string; address?: string } | null;
+  scheme: { name: string; description: string; eligibility?: string } | null;
+  escalation: { required: boolean; reason: string };
+  trace_id: string;
+  tool_calls: Array<{ tool: string; input: any; output: any; duration_ms: number; success: boolean }>;
+}
+
+export async function callAgent(
+  message: string,
+  context?: {
+    crop?: string;
+    language?: string;
+    location?: { lat?: number; lng?: number; name?: string };
+    diagnosis?: any;
+    summary?: string;
+  }
+): Promise<AgentResponse> {
+  const token = localStorage.getItem('agrocare_auth_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch('/api/agrocare/agent', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message,
+      crop: context?.crop,
+      language: context?.language,
+      location: context?.location,
+      currentDiagnosis: context?.diagnosis,
+      conversationSummary: context?.summary,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Agent request failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+

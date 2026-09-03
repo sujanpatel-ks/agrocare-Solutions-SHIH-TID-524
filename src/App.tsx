@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Screen } from './types';
+import React, { useState, useEffect } from 'react';
+import { Screen, Task, CropPrice, Language } from './types';
 import { Dashboard } from './components/Dashboard';
 import { Market } from './components/Market';
 import { CropDetails } from './components/CropDetails';
@@ -11,18 +11,25 @@ import { Chat } from './components/Chat';
 import { Profile } from './components/Profile';
 import { SchemeFinder } from './components/SchemeFinder';
 import { SoilAnalysis } from './components/SoilAnalysis';
+import { History } from './components/History';
 import { BottomNav } from './components/BottomNav';
+import { AndroidWorkspace } from './components/AndroidWorkspace';
+import { GoogleMapsAgent } from './components/GoogleMapsAgent';
 import { DiagnosisResult, diagnoseCrop } from './services/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Camera, Sprout } from 'lucide-react';
-import { FileUploader } from './components/FileUploader';
 import { CameraDiagnosis } from './components/CameraDiagnosis';
+import { FoliageBiometricHUD } from './components/FoliageBiometricHUD';
 import { TASKS as INITIAL_TASKS } from './constants';
-import { Task, CropPrice, Language } from './types';
 import { Toaster } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from './components/LanguageSelector';
 import { useAuth } from './AuthProvider';
+import { VoiceNavigation } from './components/VoiceNavigation';
+import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import { db } from './firebase';
+import { OfflineBanner } from './components/OfflineBanner';
+import { saveDiagnosisOffline, getLatestDiagnosisOffline } from './utils/offlineStorage';
 
 export default function App() {
   const { user, loading, isAuthenticating, signIn } = useAuth();
@@ -32,9 +39,63 @@ export default function App() {
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const saved = localStorage.getItem('agrocare_tasks_state');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn("Failed to load tasks from localStorage:", e);
+    }
+    return INITIAL_TASKS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('agrocare_tasks_state', JSON.stringify(tasks));
+    } catch (e) {
+      console.warn("Failed to save tasks to localStorage:", e);
+    }
+  }, [tasks]);
+
   const [selectedCrop, setSelectedCrop] = useState<CropPrice | null>(null);
   const [supplierSearchQuery, setSupplierSearchQuery] = useState<string | undefined>(undefined);
+  
+  // Track last scan prediction for scanner dashboard card
+  const [lastDiagnosis, setLastDiagnosis] = useState<any>(null);
+
+  // Load last diagnosis on login
+  useEffect(() => {
+    if (!user) return;
+    
+    // Check local storage first for speed
+    const stored = localStorage.getItem('agrocare_latest_diagnosis');
+    if (stored) {
+      try {
+        setLastDiagnosis(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse stored diagnosis:", e);
+      }
+    }
+
+    // Fetch latest scan from firestore as single source of truth
+    const fetchLatest = async () => {
+      try {
+        const path = `users/${user.uid}/diagnoses`;
+        const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          setLastDiagnosis(docData);
+          localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(docData));
+        }
+      } catch (error) {
+        console.error("Failed to fetch latest scan for home card:", error);
+      }
+    };
+    fetchLatest();
+  }, [user]);
 
   if (loading) {
     return (
@@ -72,11 +133,18 @@ export default function App() {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-soil p-6 text-center">
-        <h1 className="text-3xl font-black text-earth mb-6">Welcome to AgroCare AI</h1>
+        <div className="w-20 h-20 bg-primary/10 rounded-[28px] flex items-center justify-center mb-6 text-primary">
+          <Sprout size={40} />
+        </div>
+        <h1 className="text-3xl font-black text-earth mb-3 tracking-tight">AgroCare AI</h1>
+        <p className="text-sm font-semibold text-gray-500 max-w-xs mb-8 leading-relaxed">
+          The ultimate AI-powered diagnostic and crop health platform for modern smallholder farmers.
+        </p>
         <button 
           onClick={signIn}
           disabled={isAuthenticating}
-          className="bg-primary text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="bg-primary text-white font-black py-4 px-10 rounded-2xl shadow-xl shadow-primary/25 hover:bg-primary-dark transition disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
+          style={{ minHeight: '52px' }}
         >
           {isAuthenticating && (
             <motion.div
@@ -111,6 +179,8 @@ export default function App() {
     try {
       const result = await diagnoseCrop(base64);
       setDiagnosisResult(result);
+      setLastDiagnosis(result);
+      localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(result));
       
       // Save to backend
       fetch('/api/diagnoses', {
@@ -120,8 +190,8 @@ export default function App() {
       }).catch(err => console.error("Failed to save diagnosis to backend:", err));
     } catch (error) {
       console.error("Diagnosis failed:", error);
-      // Fallback logic already exists in handleFileSelect, but let's keep it consistent
-      setDiagnosisResult({
+      // Fallback
+      const fallbackResult: DiagnosisResult = {
         crop: 'Coconut',
         disease: 'Bud Rot',
         diseaseHi: 'बड रॉट (कलिका सड़न)',
@@ -153,7 +223,10 @@ export default function App() {
         },
         actionRequired: 'Delay Spray',
         severity: 'High'
-      });
+      };
+      setDiagnosisResult(fallbackResult);
+      setLastDiagnosis(fallbackResult);
+      localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(fallbackResult));
     } finally {
       setIsDiagnosing(false);
     }
@@ -188,6 +261,8 @@ export default function App() {
         try {
           const result = await diagnoseCrop(base64);
           setDiagnosisResult(result);
+          setLastDiagnosis(result);
+          localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(result));
           
           // Save to backend
           fetch('/api/diagnoses', {
@@ -197,8 +272,7 @@ export default function App() {
           }).catch(err => console.error("Failed to save diagnosis to backend:", err));
         } catch (error) {
           console.error("Diagnosis failed:", error);
-          // Fallback to mock data if API fails or for demo purposes
-          setDiagnosisResult({
+          const fallbackResult: DiagnosisResult = {
             crop: 'Coconut',
             disease: 'Bud Rot',
             diseaseHi: 'बड रॉट (कलिका सड़न)',
@@ -230,7 +304,10 @@ export default function App() {
             },
             actionRequired: 'Delay Spray',
             severity: 'High'
-          });
+          };
+          setDiagnosisResult(fallbackResult);
+          setLastDiagnosis(fallbackResult);
+          localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(fallbackResult));
         } finally {
           setIsDiagnosing(false);
         }
@@ -242,74 +319,45 @@ export default function App() {
     }
   };
 
-  const handleSimulateScan = () => {
-    // This is now handled by handleFileSelect, but keeping for compatibility if needed
-    handleFileSelect(new File([], "simulated.jpg", { type: "image/jpeg" }));
-  };
-
   const renderScreen = () => {
     if (isDiagnosing) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-soil p-6 text-center overflow-hidden">
-          <div className="relative w-48 h-48 mb-12">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 border-4 border-dashed border-primary/30 rounded-full"
-            />
-            <motion.div 
-              animate={{ rotate: -360 }}
-              transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-4 border-2 border-dashed border-primary/20 rounded-full"
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  opacity: [0.5, 1, 0.5]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-32 h-32 bg-primary/10 rounded-full flex items-center justify-center"
-              >
-                <Camera size={48} className="text-primary" />
-              </motion.div>
-            </div>
-            
-            {/* Scanning Line */}
-            <motion.div 
-              animate={{ top: ['0%', '100%', '0%'] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent z-10 shadow-[0_0_15px_rgba(46,125,50,0.5)]"
-            />
+        <div className="flex flex-col items-center justify-center min-h-[90dvh] bg-[#0A1A12] text-white p-6 text-center overflow-hidden relative">
+          {/* Main Scanner Container */}
+          <div className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-3xl overflow-hidden border border-emerald-500/30 shadow-2xl bg-black/40 backdrop-blur-md mb-8">
+            {uploadedImageUrl ? (
+              <img 
+                src={uploadedImageUrl} 
+                alt="Foliage Under Biometric Scan" 
+                className="w-full h-full object-cover" 
+              />
+            ) : (
+              <div className="w-full h-full bg-radial from-emerald-950/80 to-black flex items-center justify-center">
+                <Camera size={56} className="text-emerald-500/40" />
+              </div>
+            )}
+
+            {/* Advanced Foliage Biometric HUD Overlay */}
+            <FoliageBiometricHUD isScanning={true} cropLabel="Foliar Analysis" showTelemetry={true} />
           </div>
           
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.2 }}
+            className="max-w-sm"
           >
-            <h2 className="text-2xl font-black text-earth mb-3 uppercase tracking-tight">AI Analysis in Progress</h2>
-            <div className="flex flex-col gap-2">
-              <p className="text-gray-500 font-medium">Identifying crop species...</p>
-              <div className="flex justify-center gap-1">
-                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-primary rounded-full" />
-              </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold mb-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>SENTINEL VISION PIPELINE</span>
             </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tight">
+              Biometric Foliage Scan Active
+            </h2>
+            <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
+              Extracting leaf chlorophyll index, margin necrosis patterns, and ICAR pathogen classification...
+            </p>
           </motion.div>
-
-          {/* Technical Metadata Simulation */}
-          <div className="absolute bottom-12 left-0 w-full px-8 flex justify-between text-[10px] font-mono text-gray-400 uppercase tracking-widest">
-            <div className="flex flex-col items-start">
-              <span>Neural Net: V3.1-FLASH</span>
-              <span>Confidence: CALCULATING...</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span>Lat: {Math.random().toFixed(4)}</span>
-              <span>Lng: {Math.random().toFixed(4)}</span>
-            </div>
-          </div>
         </div>
       );
     }
@@ -324,6 +372,9 @@ export default function App() {
             language={language}
             onToggleLanguage={toggleLanguage}
             onCameraOpen={() => setShowCamera(true)}
+            lastDiagnosis={lastDiagnosis}
+            tasks={tasks}
+            onToggleTask={handleToggleTask}
           />
         );
       case 'market':
@@ -361,43 +412,6 @@ export default function App() {
         return <Community onBack={() => setActiveScreen('home')} language={language} onToggleLanguage={toggleLanguage} onNavigate={setActiveScreen} />;
       case 'calendar':
         return <Calendar tasks={tasks} onToggleTask={handleToggleTask} onToggleUrgentTask={handleToggleUrgentTask} onAddTask={handleAddTask} onBack={() => setActiveScreen('home')} language={language} />;
-      case 'scan':
-        return (
-          <div className="flex flex-col min-h-[100dvh] bg-soil p-6 lg:p-12">
-            <div className="max-w-2xl mx-auto w-full">
-              <div className="flex items-center gap-4 mb-8 pt-6">
-                <button 
-                  onClick={() => setActiveScreen('home')}
-                  className="p-2 bg-white rounded-full shadow-sm text-earth"
-                >
-                  <ArrowLeft size={24} />
-                </button>
-                <h1 className="text-2xl font-bold text-earth">Scan Crop</h1>
-              </div>
-              <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-xl border border-gray-100">
-                <p className="text-gray-600 mb-6 text-center">
-                  Use our AI Scanner for instant diagnosis or upload a clear photo of the affected crop leaf.
-                </p>
-                <div className="flex flex-col gap-4">
-                  <button 
-                    onClick={() => setShowCamera(true)}
-                    className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
-                  >
-                    <Camera size={24} />
-                    Open AI Camera
-                  </button>
-                  <div className="relative flex items-center justify-center py-2">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-100"></div>
-                    </div>
-                    <span className="relative px-4 bg-white text-xs font-bold text-gray-400 uppercase tracking-widest">OR</span>
-                  </div>
-                  <FileUploader onFileSelect={handleFileSelect} />
-                </div>
-              </div>
-            </div>
-          </div>
-        );
       case 'diagnosis':
         return (
           <Diagnosis 
@@ -414,14 +428,30 @@ export default function App() {
             onToggleLanguage={toggleLanguage}
           />
         );
+      case 'history':
+        return (
+          <History 
+            language={language} 
+            onSelectScan={(scan) => {
+              setDiagnosisResult(scan);
+              setUploadedImageUrl(scan.imageUrl || null);
+              setActiveScreen('diagnosis');
+            }} 
+            onNavigate={setActiveScreen}
+          />
+        );
       case 'chat':
         return <Chat onBack={() => setActiveScreen('home')} language={language} onToggleLanguage={toggleLanguage} />;
       case 'profile':
         return <Profile onBack={() => setActiveScreen('home')} language={language} onToggleLanguage={toggleLanguage} />;
       case 'scheme-finder':
-        return <SchemeFinder onBack={() => setActiveScreen('community')} language={language} />;
+        return <SchemeFinder onBack={() => setActiveScreen('home')} language={language} />;
       case 'soil-analysis':
         return <SoilAnalysis onBack={() => setActiveScreen('home')} language={language} />;
+      case 'android':
+        return <AndroidWorkspace onBack={() => setActiveScreen('home')} currentLanguage={language} />;
+      case 'maps-agent':
+        return <GoogleMapsAgent onBack={() => setActiveScreen('home')} language={language} />;
       default:
         return (
           <Dashboard 
@@ -431,26 +461,23 @@ export default function App() {
             language={language}
             onToggleLanguage={toggleLanguage}
             onCameraOpen={() => setShowCamera(true)}
+            lastDiagnosis={lastDiagnosis}
+            tasks={tasks}
+            onToggleTask={handleToggleTask}
           />
         );
     }
   };
 
+  const isTabScreen = activeScreen === 'home' || activeScreen === 'market' || activeScreen === 'calendar' || activeScreen === 'history' || activeScreen === 'profile' || activeScreen === 'diagnosis';
+
   return (
-    <div className="w-full mx-auto bg-white min-h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-x-hidden md:pl-24">
-      {/* Global Language Selector */}
-      <AnimatePresence>
-        {(activeScreen === 'home' || activeScreen === 'profile') && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className={`fixed z-[60] top-6 right-6`}
-          >
-            <LanguageSelector />
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="w-full mx-auto bg-white min-h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.05)] overflow-x-hidden md:pl-24">
+      {/* Offline Service Worker Persistent Status Banner */}
+      <OfflineBanner 
+        language={language} 
+        onOpenOfflineLibrary={() => setActiveScreen('diagnosis')} 
+      />
       
       <AnimatePresence mode="wait">
         <motion.div
@@ -458,18 +485,19 @@ export default function App() {
           initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
-          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-          className={`min-h-[100dvh] w-full max-w-7xl mx-auto ${(activeScreen === 'suppliers' || activeScreen === 'chat' || activeScreen === 'diagnosis' || activeScreen === 'crop-details' || activeScreen === 'soil-analysis') ? '' : 'pb-32 md:pb-0'}`}
+          transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+          className={`min-h-[100dvh] w-full max-w-7xl mx-auto ${isTabScreen ? 'pb-24 md:pb-0' : ''}`}
         >
           {renderScreen()}
         </motion.div>
       </AnimatePresence>
       
-      {activeScreen !== 'suppliers' && activeScreen !== 'chat' && activeScreen !== 'diagnosis' && activeScreen !== 'crop-details' && activeScreen !== 'soil-analysis' && !isDiagnosing && (
+      {isTabScreen && !isDiagnosing && (
         <BottomNav 
           activeScreen={activeScreen} 
           onScreenChange={(screen) => setActiveScreen(screen)} 
           language={language}
+          onCameraOpen={() => setShowCamera(true)}
         />
       )}
 
@@ -479,6 +507,12 @@ export default function App() {
           onClose={() => setShowCamera(false)} 
         />
       )}
+      <VoiceNavigation 
+        currentLanguage={language} 
+        onNavigate={(screen) => setActiveScreen(screen)} 
+        onCameraOpen={() => setShowCamera(true)}
+        activeScreen={activeScreen}
+      />
       <Toaster position="top-center" richColors />
     </div>
   );

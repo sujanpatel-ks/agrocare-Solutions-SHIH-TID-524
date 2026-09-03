@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Settings, Bell, Shield, HelpCircle, LogOut, ChevronRight, MapPin, Edit3, Globe, Save, X, Camera, MessageSquare, Award, Star, Phone, Droplets, Sprout, History, Image as ImageIcon, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Settings, Bell, Shield, HelpCircle, LogOut, ChevronRight, MapPin, Edit3, Globe, Save, X, Phone, Droplets, Sprout, History, ExternalLink, Loader2, Info, WifiOff, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Language } from '../types';
 import { useAuth } from '../AuthProvider';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import { toast } from 'sonner';
+import { LanguageSelector } from './LanguageSelector';
 
 interface ProfileProps {
   onBack: () => void;
@@ -22,20 +22,86 @@ const INITIAL_DATA = {
   irrigation: 'Drip Irrigation'
 };
 
+const settingsTranslations = {
+  en: {
+    title: "Settings & Profile",
+    subtitle: "Manage your farm details, language & offline mode",
+    editProfile: "Edit Farm Profile",
+    saveSuccess: "Farm profile updated successfully",
+    offlineTitle: "Offline Support Active",
+    offlineDesc: "AgroCare is fully optimized for rural regions. All core diagnostic logic, weather summary advice, and historical scans are stored locally on your device and will sync when internet is connected.",
+    notifications: "Notification Reminders",
+    pestAlerts: "Pest & Outbreak Alerts",
+    mandiReminders: "Mandi Price Alerts",
+    soilAlerts: "Soil Watering Reminders",
+    supportTitle: "Farmer Support Helpline",
+    supportDesc: "Need assistance? Chat directly with an expert via WhatsApp or call us.",
+    callUs: "Call Helpline",
+    farmDetails: "Farm Profile Details",
+    irrigationType: "Irrigation Method",
+    soilTypeLabel: "Soil Type",
+    cropTypes: "Crops Cultivated",
+    farmSize: "Farm Size"
+  },
+  hi: {
+    title: "सेटिंग्स और प्रोफ़ाइल",
+    subtitle: "अपने खेत का विवरण, भाषा और ऑफ़लाइन मोड प्रबंधित करें",
+    editProfile: "खेत प्रोफ़ाइल संपादित करें",
+    saveSuccess: "खेत प्रोफ़ाइल सफलतापूर्वक अपडेट की गई",
+    offlineTitle: "ऑफ़लाइन सहायता सक्रिय है",
+    offlineDesc: "एग्रोकेयर ग्रामीण क्षेत्रों के लिए पूरी तरह से अनुकूलित है। सभी मुख्य नैदानिक तर्क, मौसम सलाह और ऐतिहासिक स्कैन आपके डिवाइस पर स्थानीय रूप से संग्रहीत किए जाते हैं और इंटरनेट कनेक्ट होने पर सिंक हो जाएंगे।",
+    notifications: "अधिसूचना अनुस्मारक",
+    pestAlerts: "कीट और प्रकोप अलर्ट",
+    mandiReminders: "मंडी भाव अलर्ट",
+    soilAlerts: "मिट्टी में पानी देने का अनुस्मारक",
+    supportTitle: "किसान सहायता हेल्पलाइन",
+    supportDesc: "सहायता चाहिए? सीधे व्हाट्सएप पर विशेषज्ञ से बात करें या हमें कॉल करें।",
+    callUs: "हेल्पलाइन कॉल करें",
+    farmDetails: "खेत प्रोफ़ाइल विवरण",
+    irrigationType: "सिंचाई विधि",
+    soilTypeLabel: "मिट्टी का प्रकार",
+    cropTypes: "उगाई जाने वाली फसलें",
+    farmSize: "खेत का आकार"
+  },
+  kn: {
+    title: "ಸಂಯೋಜನೆಗಳು ಮತ್ತು ಪ್ರೊಫೈಲ್",
+    subtitle: "ನಿಮ್ಮ ಫಾರ್ಮ್ ವಿವರಗಳು, ಭಾಷೆ ಮತ್ತು ಆಫ್‌ಲೈನ್ ಮೋಡ್ ನಿರ್ವಹಿಸಿ",
+    editProfile: "ಫಾರ್ಮ್ ಪ್ರೊಫೈಲ್ ಸಂಪಾದಿಸಿ",
+    saveSuccess: "ಫಾರ್ಮ್ ಪ್ರೊಫೈಲ್ ಯಶಸ್ವಿಯಾಗಿ ನವೀಕರಿಸಲಾಗಿದೆ",
+    offlineTitle: "ಆಫ್‌ಲೈನ್ ಬೆಂಬಲ ಸಕ್ರಿಯವಾಗಿದೆ",
+    offlineDesc: "ಅಗ್ರೋಕೇರ್ ಗ್ರಾಮೀಣ ಪ್ರದೇಶಗಳಿಗೆ ಸಂಪೂರ್ಣವಾಗಿ ಹೊಂದುವಂತೆ ವಿನ್ಯಾಸಗೊಳಿಸಲಾಗಿದೆ. ಎಲ್ಲಾ ರೋಗನಿರ್ಣಯ ವಿಧಾನಗಳು, ಹವಾಮಾನ ಸಲಹೆಗಳು ಮತ್ತು ಇತಿಹಾಸದ ಸ್ಕ್ಯಾನ್‌ಗಳನ್ನು ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿಯೇ ಉಳಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕಗೊಂಡಾಗ ಸಿಂಕ್ ಆಗುತ್ತದೆ.",
+    notifications: "ಅಧಿಸೂಚನೆಗಳು",
+    pestAlerts: "ಕೀಟ ಮತ್ತು ರೋಗ ಬಾಧೆ ಎಚ್ಚರಿಕೆಗಳು",
+    mandiReminders: "ಮಂಡಿ ದರಗಳ ಎಚ್ಚರಿಕೆಗಳು",
+    soilAlerts: "ಮಣ್ಣಿನ ತೇವಾಂಶ ಜ್ಞಾಪನೆಗಳು",
+    supportTitle: "ರೈತ ಸಹಾಯವಾಣಿ",
+    supportDesc: "ಸಹಾಯ ಬೇಕೇ? ವಾಟ್ಸಾಪ್ ಮೂಲಕ ನೇರವಾಗಿ ತಜ್ಞರೊಂದಿಗೆ ಚಾಟ್ ಮಾಡಿ ಅಥವಾ ನಮಗೆ ಕರೆ ಮಾಡಿ.",
+    callUs: "ಸಹಾಯವಾಣಿಗೆ ಕರೆ ಮಾಡಿ",
+    farmDetails: "ಫಾರ್ಮ್ ವಿವರಗಳು",
+    irrigationType: "ನೀರಾವರಿ ಪದ್ಧತಿ",
+    soilTypeLabel: "ಮಣ್ಣಿನ ವಿಧ",
+    cropTypes: "ಬೆಳೆಯುವ ಬೆಳೆಗಳು",
+    farmSize: "ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ"
+  }
+};
+
 export const Profile: React.FC<ProfileProps> = ({ onBack, language, onToggleLanguage }) => {
   const { signOut, user } = useAuth();
+  const t = settingsTranslations[language] || settingsTranslations.en;
+
   const [isEditing, setIsEditing] = useState(false);
   const [savedData, setSavedData] = useState(INITIAL_DATA);
   const [formData, setFormData] = useState(INITIAL_DATA);
-  const [isLoading, setIsLoading] = useState(true);
-  const [diagnoses, setDiagnoses] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Notification states
+  const [pestAlerts, setPestAlerts] = useState(true);
+  const [mandiReminders, setMandiReminders] = useState(true);
+  const [soilAlerts, setSoilAlerts] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
         const storedData = localStorage.getItem('agrocare_profile');
         if (storedData) {
           const parsedData = JSON.parse(storedData);
@@ -44,46 +110,29 @@ export const Profile: React.FC<ProfileProps> = ({ onBack, language, onToggleLang
         }
       } catch (error) {
         console.error("Failed to load profile:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
     fetchProfile();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchDiagnoses = async () => {
-      setLoadingHistory(true);
-      try {
-        const path = `users/${user.uid}/diagnoses`;
-        const q = query(collection(db, path), orderBy('timestamp', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setDiagnoses(data);
-      } catch (error) {
-        console.error("Failed to fetch diagnoses:", error);
-      } finally {
-        setLoadingHistory(false);
-      }
-    };
-    fetchDiagnoses();
-  }, [user]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
+    setIsLoading(true);
     try {
-      // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 500));
       localStorage.setItem('agrocare_profile', JSON.stringify(formData));
       setSavedData(formData);
       setIsEditing(false);
+      toast.success(t.saveSuccess);
     } catch (error) {
       console.error("Failed to save profile:", error);
+      toast.error("Failed to update profile.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,536 +141,305 @@ export const Profile: React.FC<ProfileProps> = ({ onBack, language, onToggleLang
     setIsEditing(false);
   };
 
-  const t = {
-    en: {
-      profile: 'Profile',
-      editProfile: 'Edit Profile',
-      farmDetails: 'Farm Details',
-      location: 'Location',
-      phone: 'Phone Number',
-      farmSize: 'Farm Size',
-      primaryCrops: 'Primary Crops',
-      soilType: 'Soil Type',
-      irrigation: 'Irrigation',
-      settings: 'Settings',
-      language: 'Language',
-      notifications: 'Notifications',
-      privacy: 'Privacy & Security',
-      help: 'Help & Support',
-      logout: 'Log Out',
-      save: 'Save Changes',
-      cancel: 'Cancel',
-      currentLang: 'English',
-      upgradeTitle: 'AgroCare Premium',
-      upgradeDesc: 'Get advanced weather forecasts and unlimited AI scans.',
-      upgradeBtn: 'Upgrade',
-      diagnosisHistory: 'Diagnosis History',
-      noHistory: 'No history yet',
-      viewReport: 'View Report'
-    },
-    hi: {
-      profile: 'प्रोफ़ाइल',
-      editProfile: 'प्रोफ़ाइल संपादित करें',
-      farmDetails: 'खेत का विवरण',
-      location: 'स्थान',
-      phone: 'फ़ोन नंबर',
-      farmSize: 'खेत का आकार',
-      primaryCrops: 'मुख्य फसलें',
-      soilType: 'मिट्टी का प्रकार',
-      irrigation: 'सिंचाई',
-      settings: 'सेटिंग्स',
-      language: 'भाषा',
-      notifications: 'सूचनाएं',
-      privacy: 'गोपनीयता और सुरक्षा',
-      help: 'मदद और समर्थन',
-      logout: 'लॉग आउट',
-      save: 'परिवर्तन सहेजें',
-      cancel: 'रद्द करें',
-      currentLang: 'हिंदी',
-      upgradeTitle: 'एग्रोकेयर प्रीमियम',
-      upgradeDesc: 'उन्नत मौसम पूर्वानुमान और असीमित एआई स्कैन प्राप्त करें।',
-      upgradeBtn: 'अपग्रेड करें',
-      diagnosisHistory: 'निदान इतिहास',
-      noHistory: 'अभी तक कोई इतिहास नहीं',
-      viewReport: 'रिपोर्ट देखें'
-    },
-    kn: {
-      profile: 'ಪ್ರೊಫೈಲ್',
-      editProfile: 'ಪ್ರೊಫೈಲ್ ಸಂಪಾದಿಸಿ',
-      farmDetails: 'ಕೃಷಿ ವಿವರಗಳು',
-      location: 'ಸ್ಥಳ',
-      phone: 'ಫೋನ್ ಸಂಖ್ಯೆ',
-      farmSize: 'ಕೃಷಿ ಗಾತ್ರ',
-      primaryCrops: 'ಮುಖ್ಯ ಬೆಳೆಗಳು',
-      soilType: 'ಮಣ್ಣಿನ ಪ್ರಕಾರ',
-      irrigation: 'ನೀರಾವರಿ',
-      settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
-      language: 'ಭಾಷೆ',
-      notifications: 'ಅಧಿಸೂಚನೆಗಳು',
-      privacy: 'ಗೌಪ್ಯತೆ ಮತ್ತು ಭದ್ರತೆ',
-      help: 'ಸಹಾಯ ಮತ್ತು ಬೆಂಬಲ',
-      logout: 'ಲಾಗ್ ಔಟ್',
-      save: 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ',
-      cancel: 'ರದ್ದುಮಾಡಿ',
-      currentLang: 'ಕನ್ನಡ',
-      upgradeTitle: 'ಆಗ್ರೋಕೇರ್ ಪ್ರೀಮಿಯಂ',
-      upgradeDesc: 'ಸುಧಾರಿತ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆಗಳು ಮತ್ತು ಅನಿಯಮಿತ AI ಸ್ಕ್ಯಾನ್‌ಗಳನ್ನು ಪಡೆಯಿರಿ.',
-      upgradeBtn: 'ಅಪ್‌ಗ್ರೇಡ್ ಮಾಡಿ',
-      diagnosisHistory: 'ರೋಗನಿರ್ಣಯದ ಇತಿಹಾಸ',
-      noHistory: 'ಇನ್ನೂ ಯಾವುದೇ ಇತಿಹಾಸವಿಲ್ಲ',
-      viewReport: 'ವರದಿ ನೋಡಿ'
-    }
-  }[language] || {
-    profile: 'Profile',
-    editProfile: 'Edit Profile',
-    farmDetails: 'Farm Details',
-    location: 'Location',
-    phone: 'Phone Number',
-    farmSize: 'Farm Size',
-    primaryCrops: 'Primary Crops',
-    soilType: 'Soil Type',
-    irrigation: 'Irrigation',
-    settings: 'Settings',
-    language: 'Language',
-    notifications: 'Notifications',
-    privacy: 'Privacy & Security',
-    help: 'Help & Support',
-    logout: 'Log Out',
-    save: 'Save Changes',
-    cancel: 'Cancel',
-    currentLang: 'English',
-    upgradeTitle: 'AgroCare Premium',
-    upgradeDesc: 'Get advanced weather forecasts and unlimited AI scans.',
-    upgradeBtn: 'Upgrade'
-  };
-
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-[#F8F9FA] w-full relative">
-      {/* 
-        Header Section
-        Using shrink-0 and compact padding to prevent overlap with the main content.
-      */}
-      <header className="bg-primary-dark text-white px-5 pt-20 pb-5 rounded-b-[24px] shadow-lg z-10 relative overflow-hidden shrink-0 lg:rounded-none lg:px-10">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/20 rounded-full -ml-12 -mb-12 blur-2xl"></div>
-        
-        <div className="flex items-center justify-between mb-4 relative z-10">
-          <div className="flex items-center gap-2">
-            <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition">
-              <ArrowLeft size={20} />
-            </button>
-            <h1 className="font-bold text-lg tracking-wide">{isEditing ? t.editProfile : t.profile}</h1>
+    <div className="flex flex-col min-h-screen bg-[#FAFBF9] p-6 pb-28">
+      {/* Header */}
+      <div className="mb-8 pt-6">
+        <h1 className="text-2xl font-black text-earth tracking-tight">{t.title}</h1>
+        <p className="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wider">{t.subtitle}</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Offline Mode Sync Status Banner */}
+        <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-[24px] flex items-start gap-4">
+          <div className="w-11 h-11 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0 text-primary">
+            <WifiOff size={20} />
           </div>
-          {!isEditing ? (
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition backdrop-blur-sm shrink-0"
-            >
-              <Edit3 size={16} />
-            </button>
-          ) : (
-            <div className="w-8"></div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-4 relative z-10">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-primary-dark font-bold text-2xl border-2 border-green-400 overflow-hidden shadow-inner shrink-0 relative">
-            <User size={32} />
-            <div className="absolute bottom-0 right-0 w-5 h-5 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center">
-              <Star size={10} className="fill-white text-white" />
-            </div>
-          </div>
-          <div className="flex-1">
-            {isEditing ? (
-              <div className="space-y-1.5">
-                <input 
-                  type="text" 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full border-b border-green-400 bg-transparent text-white placeholder-white/50 px-1 py-0.5 text-base font-bold focus:outline-none focus:border-white transition-colors"
-                  placeholder="Your Name"
-                />
-                <div className="flex flex-col gap-1.5 mt-1.5">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={12} className="text-green-200 shrink-0" />
-                    <input 
-                      type="text" 
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      className="w-full border-b border-green-400 bg-transparent text-green-50 placeholder-green-200/50 px-1 py-0.5 text-xs focus:outline-none focus:border-white transition-colors"
-                      placeholder="Your Location"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone size={12} className="text-green-200 shrink-0" />
-                    <input 
-                      type="text" 
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full border-b border-green-400 bg-transparent text-green-50 placeholder-green-200/50 px-1 py-0.5 text-xs focus:outline-none focus:border-white transition-colors"
-                      placeholder="Phone Number"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-xl font-black leading-tight flex items-center gap-2 mb-1">
-                  {savedData.name}
-                </h2>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-green-50 text-xs flex items-center gap-1.5 font-medium">
-                    <MapPin size={12} className="text-green-300" /> {savedData.address}
-                  </p>
-                  <p className="text-green-50 text-xs flex items-center gap-1.5 font-medium">
-                    <Phone size={12} className="text-green-300" /> {savedData.phone}
-                  </p>
-                </div>
-              </>
-            )}
+          <div>
+            <h3 className="text-sm font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span>{t.offlineTitle}</span>
+              <span className="bg-primary/20 text-primary text-[8px] px-2 py-0.5 rounded-full font-black">ACTIVE</span>
+            </h3>
+            <p className="text-xs text-emerald-700/90 font-medium leading-relaxed mt-1.5">{t.offlineDesc}</p>
           </div>
         </div>
-      </header>
 
-      {/* 
-        Main Content Section
-        Reduced padding and spacing to make better use of whitespace and prevent overlap.
-      */}
-      <main className="flex-1 overflow-y-auto overscroll-contain pb-24 px-4 pt-4 lg:px-10 lg:pt-8" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
-          <div className="space-y-4 lg:space-y-6">
-            {/* Stats Section */}
-        <motion.section 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-3"
-        >
-          <motion.div whileTap={{ scale: 0.95 }} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
-            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-2">
-              <Camera size={20} />
-            </div>
-            <span className="text-xl font-black text-earth">24</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Scans</span>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2">
-              <MessageSquare size={20} />
-            </div>
-            <span className="text-xl font-black text-earth">12</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Posts</span>
-          </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
-            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-2">
-              <Award size={20} />
-            </div>
-            <span className="text-xl font-black text-earth">Pro</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Status</span>
-          </motion.div>
-        </motion.section>
-
-        {/* Upgrade Banner */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <motion.div 
-            whileTap={{ scale: 0.98 }}
-            className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-lg shadow-orange-500/20 relative overflow-hidden cursor-pointer"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl"></div>
-            <div className="relative z-10 flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Star size={18} className="fill-white" />
-                  <h3 className="font-black text-lg tracking-tight">{t.upgradeTitle}</h3>
-                </div>
-                <p className="text-white/90 text-xs font-medium leading-relaxed">{t.upgradeDesc}</p>
-              </div>
-              <motion.button whileTap={{ scale: 0.95 }} className="bg-white text-orange-600 px-4 py-2.5 rounded-xl font-black text-xs shadow-sm hover:bg-orange-50 transition-colors shrink-0">
-                {t.upgradeBtn}
-              </motion.button>
-            </div>
-          </motion.div>
-        </motion.section>
-
-        {/* Farm Details */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-2">{t.farmDetails}</h3>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-50 flex justify-between items-center">
-              <div className="flex items-center gap-3 text-gray-600 font-medium">
-                <div className="bg-green-50 p-2 rounded-xl text-green-600"><Sprout size={18} /></div>
-                <span className="text-sm">{t.farmSize}</span>
-              </div>
-              {isEditing ? (
-                <input 
-                  type="text" 
-                  name="size"
-                  value={formData.size}
-                  onChange={handleChange}
-                  className="text-right font-bold text-earth bg-transparent border-b border-green-500 px-1 py-0.5 w-24 text-sm focus:outline-none focus:border-primary transition-colors"
-                />
-              ) : (
-                <span className="font-bold text-earth text-base">{savedData.size}</span>
-              )}
-            </div>
-            <div className="p-4 border-b border-gray-50 flex justify-between items-center">
-              <div className="flex items-center gap-3 text-gray-600 font-medium">
-                <div className="bg-amber-50 p-2 rounded-xl text-amber-600"><Globe size={18} /></div>
-                <span className="text-sm">{t.soilType}</span>
-              </div>
-              {isEditing ? (
-                <input 
-                  type="text" 
-                  name="soilType"
-                  value={formData.soilType}
-                  onChange={handleChange}
-                  className="text-right font-bold text-earth bg-transparent border-b border-green-500 px-1 py-0.5 w-24 text-sm focus:outline-none focus:border-primary transition-colors"
-                />
-              ) : (
-                <span className="font-bold text-earth text-base">{savedData.soilType}</span>
-              )}
-            </div>
-            <div className="p-4 border-b border-gray-50 flex justify-between items-center">
-              <div className="flex items-center gap-3 text-gray-600 font-medium">
-                <div className="bg-blue-50 p-2 rounded-xl text-blue-600"><Droplets size={18} /></div>
-                <span className="text-sm">{t.irrigation}</span>
-              </div>
-              {isEditing ? (
-                <input 
-                  type="text" 
-                  name="irrigation"
-                  value={formData.irrigation}
-                  onChange={handleChange}
-                  className="text-right font-bold text-earth bg-transparent border-b border-green-500 px-1 py-0.5 w-24 text-sm focus:outline-none focus:border-primary transition-colors"
-                />
-              ) : (
-                <span className="font-bold text-earth text-base">{savedData.irrigation}</span>
-              )}
-            </div>
-            <div className="p-4 flex justify-between items-center">
-              <span className="text-gray-600 font-medium text-sm pl-12">{t.primaryCrops}</span>
-              {isEditing ? (
-                <input 
-                  type="text" 
-                  name="crops"
-                  value={formData.crops}
-                  onChange={handleChange}
-                  className="text-right font-bold text-earth bg-transparent border-b border-green-500 px-1 py-0.5 w-32 text-sm focus:outline-none focus:border-primary transition-colors"
-                />
-              ) : (
-                <span className="font-bold text-earth text-base text-right">{savedData.crops}</span>
-              )}
-            </div>
-          </div>
-        </motion.section>
-
-        <AnimatePresence>
-          {isEditing && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex gap-3 pt-2 overflow-hidden"
-            >
-              <motion.button 
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCancel}
-                className="flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 text-gray-600 font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition text-sm"
-              >
-                <X size={18} />
-                {t.cancel}
-              </motion.button>
-              <motion.button 
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSave}
-                className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:bg-primary-dark transition text-sm"
-              >
-                <Save size={18} />
-                {t.save}
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-          </div>
-          <div className="space-y-4 lg:space-y-6">
-
-        {/* Settings */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-2">{t.settings}</h3>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="w-full p-4 border-b border-gray-50 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-gray-700">
-                  <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600">
-                    <Globe size={18} />
-                  </div>
-                  <span className="font-medium text-sm">{t.language}</span>
-                </div>
-                <span className="text-sm font-bold text-primary">{t.currentLang}</span>
-              </div>
-              <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-100">
-                <button 
-                  onClick={() => language !== 'en' && onToggleLanguage('en')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${language === 'en' ? 'bg-white text-primary shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  English
-                </button>
-                <button 
-                  onClick={() => language !== 'hi' && onToggleLanguage('hi')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${language === 'hi' ? 'bg-white text-primary shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  हिंदी
-                </button>
-                <button 
-                  onClick={() => language !== 'kn' && onToggleLanguage('kn')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${language === 'kn' ? 'bg-white text-primary shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  ಕನ್ನಡ
-                </button>
-              </div>
-            </div>
-            
-            <motion.button whileTap={{ scale: 0.98, backgroundColor: '#f9fafb' }} className="w-full p-4 border-b border-gray-50 flex items-center justify-between hover:bg-gray-50 transition">
-              <div className="flex items-center gap-3 text-gray-700">
-                <div className="bg-orange-50 p-2 rounded-xl text-orange-600">
-                  <Bell size={18} />
-                </div>
-                <span className="font-medium text-sm">{t.notifications}</span>
-              </div>
-              <ChevronRight size={18} className="text-gray-400" />
-            </motion.button>
-            
-            <motion.button whileTap={{ scale: 0.98, backgroundColor: '#f9fafb' }} className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition">
-              <div className="flex items-center gap-3 text-gray-700">
-                <div className="bg-green-50 p-2 rounded-xl text-green-600">
-                  <Shield size={18} />
-                </div>
-                <span className="font-medium text-sm">{t.privacy}</span>
-              </div>
-              <ChevronRight size={18} className="text-gray-400" />
-            </motion.button>
-          </div>
-        </motion.section>
-
-        {/* Diagnosis History */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-        >
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-2 flex items-center gap-2">
-            <History size={14} className="text-primary" /> {t.diagnosisHistory}
+        {/* Global Language Toggle Selector inside Settings */}
+        <div className="bg-white p-5 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-gray-100/80 flex flex-col gap-4">
+          <h3 className="text-xs font-black text-earth uppercase tracking-widest flex items-center gap-2">
+            <Globe size={15} className="text-primary" />
+            <span>App Language Selection</span>
           </h3>
-          <div className="space-y-3">
-            {loadingHistory ? (
-              <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100">
-                <Loader2 size={24} className="animate-spin text-primary mx-auto mb-2" />
-                <p className="text-xs text-gray-400">Loading history...</p>
-              </div>
-            ) : diagnoses.length > 0 ? (
-              diagnoses.map((diag, index) => (
-                <motion.div 
-                  key={diag.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 bg-gray-50 rounded-xl overflow-hidden shrink-0 border border-gray-100">
-                    {diag.imageUrl ? (
-                      <img src={diag.imageUrl} alt={diag.crop} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <ImageIcon size={20} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h4 className="font-bold text-sm text-gray-900 truncate">{diag.crop}</h4>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${
-                        diag.severity === 'High' ? 'bg-red-50 text-red-600' : 
-                        diag.severity === 'Medium' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
-                      }`}>
-                        {diag.severity}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-500 font-medium truncate">{diag.disease}</p>
-                    <p className="text-[9px] text-gray-400 mt-1">{new Date(diag.timestamp).toLocaleDateString()}</p>
-                  </div>
-                  <button className="bg-gray-50 p-2 rounded-xl text-gray-400 hover:text-primary transition shrink-0">
-                    <ExternalLink size={16} />
-                  </button>
-                </motion.div>
-              ))
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-500 font-semibold">Change translation:</span>
+            <LanguageSelector />
+          </div>
+        </div>
+
+        {/* Farmer Profile Card & Form */}
+        <div className="bg-white p-5 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-gray-100/80">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xs font-black text-earth uppercase tracking-widest flex items-center gap-2">
+              <User size={15} className="text-primary" />
+              <span>{t.farmDetails}</span>
+            </h3>
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-black px-3.5 py-2 rounded-xl transition-all"
+                style={{ minHeight: '40px' }}
+              >
+                <Edit3 size={14} />
+                <span>{t.editProfile}</span>
+              </button>
             ) : (
-              <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 italic text-gray-400 text-xs">
-                {t.noHistory}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCancel}
+                  className="p-2 bg-gray-50 text-gray-400 hover:text-gray-600 rounded-xl transition-all"
+                  style={{ minHeight: '40px', minWidth: '40px' }}
+                >
+                  <X size={16} />
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  className="bg-primary hover:bg-primary-dark text-white text-xs font-black px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all"
+                  style={{ minHeight: '40px' }}
+                >
+                  {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Save size={14} />}
+                  <span>Save</span>
+                </button>
               </div>
             )}
           </div>
-        </motion.section>
 
-        {/* Support */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <motion.button whileTap={{ scale: 0.98, backgroundColor: '#f9fafb' }} className="w-full p-4 border-b border-gray-50 flex items-center justify-between hover:bg-gray-50 transition">
-              <div className="flex items-center gap-3 text-gray-700">
-                <div className="bg-purple-50 p-2 rounded-xl text-purple-600">
-                  <HelpCircle size={18} />
+          <AnimatePresence mode="wait">
+            {isEditing ? (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="space-y-4"
+              >
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Farmer Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  />
                 </div>
-                <span className="font-medium text-sm">{t.help}</span>
-              </div>
-              <ChevronRight size={18} className="text-gray-400" />
-            </motion.button>
-            
-            <motion.button 
-              whileTap={{ scale: 0.98, backgroundColor: '#fef2f2' }} 
-              onClick={async () => {
-                await signOut();
-                window.location.reload();
-              }}
-              className="w-full p-4 flex items-center justify-between hover:bg-red-50 transition group"
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Phone Number</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">{t.farmSize}</label>
+                  <input
+                    type="text"
+                    name="size"
+                    value={formData.size}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">{t.cropTypes}</label>
+                  <input
+                    type="text"
+                    name="crops"
+                    value={formData.crops}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">{t.soilTypeLabel}</label>
+                  <select
+                    name="soilType"
+                    value={formData.soilType}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  >
+                    <option value="Red Loamy">Red Loamy</option>
+                    <option value="Black Cotton">Black Cotton</option>
+                    <option value="Clayey">Clayey</option>
+                    <option value="Alluvial">Alluvial</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">{t.irrigationType}</label>
+                  <select
+                    name="irrigation"
+                    value={formData.irrigation}
+                    onChange={handleChange}
+                    className="bg-[#F8F9FA] border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-earth focus:border-green-300 focus:bg-white"
+                  >
+                    <option value="Drip Irrigation">Drip Irrigation</option>
+                    <option value="Sprinkler Irrigation">Sprinkler Irrigation</option>
+                    <option value="Overhead Rain Irrigation">Overhead Rain Irrigation</option>
+                    <option value="Manual Manual">Manual Watering</option>
+                  </select>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center gap-4 py-3 border-b border-gray-50">
+                  <div className="w-10 h-10 bg-[#F4F6F2] rounded-xl flex items-center justify-center text-primary shrink-0">
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">Farmer Name</span>
+                    <p className="text-sm font-bold text-earth mt-0.5">{savedData.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 py-3 border-b border-gray-50">
+                  <div className="w-10 h-10 bg-[#F4F6F2] rounded-xl flex items-center justify-center text-primary shrink-0">
+                    <Phone size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">Phone Number</span>
+                    <p className="text-sm font-bold text-earth mt-0.5">{savedData.phone}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 py-3 border-b border-gray-50">
+                  <div className="w-10 h-10 bg-[#F4F6F2] rounded-xl flex items-center justify-center text-primary shrink-0">
+                    <Sprout size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">{t.farmSize} & Crops</span>
+                    <p className="text-sm font-bold text-earth mt-0.5">{savedData.size} • {savedData.crops}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 py-3">
+                  <div className="w-10 h-10 bg-[#F4F6F2] rounded-xl flex items-center justify-center text-primary shrink-0">
+                    <Droplets size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">{t.soilTypeLabel} & {t.irrigationType}</span>
+                    <p className="text-sm font-bold text-earth mt-0.5">{savedData.soilType} • {savedData.irrigation}</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Notification Reminders */}
+        <div className="bg-white p-5 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-gray-100/80 space-y-4">
+          <h3 className="text-xs font-black text-earth uppercase tracking-widest flex items-center gap-2">
+            <Bell size={15} className="text-primary" />
+            <span>{t.notifications}</span>
+          </h3>
+
+          <div className="flex justify-between items-center py-2.5 border-b border-gray-50">
+            <div>
+              <h4 className="text-xs font-bold text-earth">{t.pestAlerts}</h4>
+              <p className="text-[10px] text-gray-400 font-medium">Real-time alerts for local outbreaks</p>
+            </div>
+            <button
+              onClick={() => setPestAlerts(!pestAlerts)}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center p-1 cursor-pointer ${pestAlerts ? 'bg-primary' : 'bg-gray-200'}`}
+              style={{ minHeight: '32px', minWidth: '48px' }}
             >
-              <div className="flex items-center gap-3 text-red-600">
-                <div className="bg-red-50 p-2 rounded-xl group-hover:bg-red-100 transition">
-                  <LogOut size={18} />
-                </div>
-                <span className="font-bold text-sm">{t.logout}</span>
-              </div>
-            </motion.button>
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${pestAlerts ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
           </div>
-        </motion.section>
-        
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="text-center pt-4 pb-8"
-        >
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">AgroCare App v1.0.0</p>
-        </motion.div>
+
+          <div className="flex justify-between items-center py-2.5 border-b border-gray-50">
+            <div>
+              <h4 className="text-xs font-bold text-earth">{t.mandiReminders}</h4>
+              <p className="text-[10px] text-gray-400 font-medium">Daily local market rates reminder</p>
+            </div>
+            <button
+              onClick={() => setMandiReminders(!mandiReminders)}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center p-1 cursor-pointer ${mandiReminders ? 'bg-primary' : 'bg-gray-200'}`}
+              style={{ minHeight: '32px', minWidth: '48px' }}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${mandiReminders ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex justify-between items-center py-2.5">
+            <div>
+              <h4 className="text-xs font-bold text-earth">{t.soilAlerts}</h4>
+              <p className="text-[10px] text-gray-400 font-medium">Drip irrigation water logs advice</p>
+            </div>
+            <button
+              onClick={() => setSoilAlerts(!soilAlerts)}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center p-1 cursor-pointer ${soilAlerts ? 'bg-primary' : 'bg-gray-200'}`}
+              style={{ minHeight: '32px', minWidth: '48px' }}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${soilAlerts ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
           </div>
         </div>
-      </main>
+
+        {/* Farmer Support and Helpline Card */}
+        <div className="bg-white p-5 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-gray-100/80 flex flex-col gap-4">
+          <div className="flex gap-3.5 items-start">
+            <div className="w-11 h-11 bg-green-50 rounded-2xl flex items-center justify-center shrink-0 text-green-600 border border-green-100">
+              <HelpCircle size={20} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-earth uppercase tracking-widest">{t.supportTitle}</h3>
+              <p className="text-xs text-gray-500 font-semibold leading-relaxed mt-1">{t.supportDesc}</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3.5 mt-1">
+            <a
+              href="tel:+9118001801551"
+              className="bg-[#F4F6F2] hover:bg-[#EBEEE8] text-[#2E7D32] text-xs font-black py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-colors border border-green-100"
+              style={{ minHeight: '48px' }}
+            >
+              <Phone size={14} />
+              <span>{t.callUs}</span>
+            </a>
+            <a
+              href="https://wa.me/919876543210"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] text-xs font-black py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-colors border border-green-100"
+              style={{ minHeight: '48px' }}
+            >
+              <span>WhatsApp Chat</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Log Out */}
+        <button
+          onClick={signOut}
+          className="w-full bg-red-50 hover:bg-red-100/80 text-red-600 font-black text-xs py-4 rounded-[20px] transition-all flex items-center justify-center gap-2 border border-red-100/50"
+          style={{ minHeight: '48px' }}
+        >
+          <LogOut size={16} />
+          <span>Log Out Account</span>
+        </button>
+
+      </div>
     </div>
   );
 };

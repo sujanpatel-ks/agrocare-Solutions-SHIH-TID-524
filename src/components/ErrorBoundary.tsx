@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -11,7 +10,7 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null
@@ -41,8 +40,20 @@ export class ErrorBoundary extends React.Component<Props, State> {
             {this.state.error?.message || 'Unknown Error'}
           </div>
           <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 bg-[#1B5E20] hover:bg-[#144317] text-white px-8 py-4 rounded-full font-bold shadow-lg transition-transform active:scale-95"
+            onClick={() => {
+              if ('caches' in window) {
+                caches.keys().then((keys) => {
+                  keys.forEach((k) => caches.delete(k));
+                });
+              }
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then((regs) => {
+                  regs.forEach((r) => r.unregister());
+                });
+              }
+              window.location.reload();
+            }}
+            className="flex items-center gap-2 bg-[#1B5E20] hover:bg-[#144317] text-white px-8 py-4 rounded-full font-bold shadow-lg transition-transform active:scale-95 cursor-pointer"
           >
             <RefreshCw size={20} />
             Reload Application

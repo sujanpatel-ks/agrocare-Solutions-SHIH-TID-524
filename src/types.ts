@@ -1,6 +1,6 @@
-export type Screen = 'home' | 'market' | 'suppliers' | 'community' | 'calendar' | 'diagnosis' | 'chat' | 'scan' | 'crop-details' | 'profile' | 'scheme-finder' | 'soil-analysis';
+export type Screen = 'home' | 'market' | 'suppliers' | 'community' | 'calendar' | 'diagnosis' | 'chat' | 'scan' | 'crop-details' | 'profile' | 'scheme-finder' | 'soil-analysis' | 'history' | 'android' | 'maps-agent';
 
-export type Language = 'en' | 'hi' | 'kn';
+export type Language = 'en' | 'hi' | 'kn' | 'ta' | 'te' | 'mr';
 
 export interface CropPrice {
   id: string;
@@ -26,6 +26,7 @@ export interface Supplier {
   tags: string[];
   verified: boolean;
   phone: string;
+  website?: string;
   address?: string;
   lat?: number;
   lng?: number;
@@ -84,6 +85,8 @@ export interface Task {
   color: string;
   completed: boolean;
   urgent?: boolean;
+  transcript?: string;
+  dueDate?: string;
 }
 
 export interface RecommendedCrop {

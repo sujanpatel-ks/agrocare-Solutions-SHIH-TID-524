@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Mic, MicOff, X, Loader2, Volume2 } from 'lucide-react';
+import { Mic, MicOff, X, Loader2, Volume2, RotateCcw } from 'lucide-react';
 import { DiagnosisResult } from '../services/gemini';
 
 interface LiveAudioChatProps {
@@ -14,18 +14,26 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isMutedRef = useRef<boolean>(false);
   
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef<number>(0);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
   useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
     let isMounted = true;
+    setIsConnecting(true);
+    setError(null);
 
     const initLiveAPI = async () => {
       try {
@@ -53,6 +61,10 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
             const stream = await navigator.mediaDevices.getUserMedia({ 
               audio: { channelCount: 1, sampleRate: 16000 } 
             });
+            if (!isMounted) {
+              stream.getTracks().forEach(t => t.stop());
+              return;
+            }
             streamRef.current = stream;
 
             const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -63,7 +75,7 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
             processorRef.current = processor;
 
             processor.onaudioprocess = (e) => {
-              if (isMuted) return;
+              if (isMutedRef.current) return;
               
               const inputData = e.inputBuffer.getChannelData(0);
               const pcm16 = new Int16Array(inputData.length);
@@ -87,8 +99,8 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
             source.connect(processor);
             processor.connect(audioCtx.destination);
           } catch (err) {
-            console.error("Mic error:", err);
-            setError("Could not access microphone.");
+            console.warn("Microphone access notice:", err);
+            if (isMounted) setError("Could not access microphone. Please enable mic permissions.");
           }
         };
 
@@ -97,6 +109,12 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
 
           try {
             const message = JSON.parse(event.data);
+
+            if (message.error) {
+              console.warn("Gemini Live service notice:", message.error);
+              setError("Live audio service busy. Tap Retry or use Voice Chat.");
+              return;
+            }
 
             // Handle interruption
             if (message.interrupted) {
@@ -153,23 +171,30 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
               };
             }
           } catch (err) {
-            console.error("Error parsing message from live-ws:", err);
+            console.warn("Notice parsing message from live-ws:", err);
           }
         };
 
         ws.onerror = (err) => {
-          console.error("Live WebSocket Error:", err);
-          if (isMounted) setError("Connection error occurred.");
+          console.warn("Live WebSocket connection status update:", err);
+          if (isMounted) {
+            setError("Live audio connection unavailable.");
+            setIsConnecting(false);
+            setIsConnected(false);
+          }
         };
 
         ws.onclose = () => {
-          if (isMounted) setIsConnected(false);
+          if (isMounted) {
+            setIsConnected(false);
+            setIsConnecting(false);
+          }
         };
 
       } catch (err) {
-        console.error("Failed to init Live API WebSocket:", err);
+        console.warn("Live API init status:", err);
         if (isMounted) {
-          setError("Failed to connect to AI.");
+          setError("Failed to connect to AI voice service.");
           setIsConnecting(false);
         }
       }
@@ -180,16 +205,16 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
     return () => {
       isMounted = false;
       if (processorRef.current && audioContextRef.current) {
-        processorRef.current.disconnect();
+        try { processorRef.current.disconnect(); } catch (e) {}
       }
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(console.error);
+        audioContextRef.current.close().catch(() => {});
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       if (playbackContextRef.current && playbackContextRef.current.state !== 'closed') {
-        playbackContextRef.current.close().catch(console.error);
+        playbackContextRef.current.close().catch(() => {});
       }
       if (wsRef.current) {
         try {
@@ -197,7 +222,7 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
         } catch (e) {}
       }
     };
-  }, [diagnosis, isMuted]);
+  }, [diagnosis, retryCount]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -210,7 +235,7 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
         <div className="p-6 pb-8 flex flex-col items-center text-center relative">
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition"
+            className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -234,7 +259,19 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
               Connecting to AI...
             </div>
           ) : error ? (
-            <p className="text-red-500 font-medium">{error}</p>
+            <div className="space-y-3">
+              <p className="text-amber-700 text-sm font-medium bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={() => setRetryCount(c => c + 1)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2D6A4F] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+              >
+                <RotateCcw size={13} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
           ) : (
             <p className="text-gray-600 font-medium">
               {isSpeaking ? "AI is speaking..." : "Listening... Ask about your crop."}
@@ -242,11 +279,11 @@ export const LiveAudioChat: React.FC<LiveAudioChatProps> = ({ diagnosis, onClose
           )}
         </div>
         
-        <div className="bg-gray-50 p-6 flex justify-center border-t border-gray-100">
+        <div className="bg-gray-50 p-6 flex justify-center border-t border-gray-100 gap-4">
           <button
             onClick={() => setIsMuted(!isMuted)}
             disabled={isConnecting || !!error}
-            className={`p-6 rounded-full shadow-lg transition-all ${
+            className={`p-6 rounded-full shadow-lg transition-all cursor-pointer ${
               isMuted 
                 ? 'bg-red-100 text-red-500 hover:bg-red-200' 
                 : 'bg-primary text-white hover:bg-primary-dark'

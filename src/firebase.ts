@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 
 // @ts-ignore
 import firebaseConfig from '../firebase-applet-config.json';
@@ -8,6 +8,18 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Enable offline persistence for seamless zero-connectivity failover
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Firestore offline persistence: multiple tabs open. Enabled in one tab.');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Firestore offline persistence: browser unimplemented.');
+  } else {
+    console.warn('Firestore offline persistence error:', err);
+  }
+});
+
 export const auth = getAuth();
 export const googleProvider = new GoogleAuthProvider();
 

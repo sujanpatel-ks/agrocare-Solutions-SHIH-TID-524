@@ -1,6 +1,6 @@
 {
   "name": "AgroCare AI Final APP",
-  "description": "Smart farming assistant for crop diagnosis, market prices, and community advice.",
+  "description": "Smart farming assistant with real-time Google Maps intelligence, crop diagnosis, mandi prices, and community advice.",
   "requestFramePermissions": [
     "camera",
     "geolocation",

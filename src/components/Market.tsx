@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, Bell, Search, Mic, MapPin, Wheat, Heart, TrendingUp, TrendingDown, Minus, Store, Filter, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
 import { toast } from 'sonner';
 import { CropPrice, Language } from '../types';
 import { fetchKarnatakaMarketPrices } from '../services/marketApi';
@@ -28,20 +28,36 @@ const ARBITRAGE_OPPORTUNITY = {
 
 const getMockHistoricalData = (price: number, trend: string) => {
   const base = price;
+  const round = (val: number) => Math.round(val);
   if (trend === 'up') {
     return [
-      { price: base * 0.9 }, { price: base * 0.92 }, { price: base * 0.91 },
-      { price: base * 0.95 }, { price: base * 0.94 }, { price: base * 0.98 }, { price: base }
+      { day: '6d ago', price: round(base * 0.90) },
+      { day: '5d ago', price: round(base * 0.92) },
+      { day: '4d ago', price: round(base * 0.91) },
+      { day: '3d ago', price: round(base * 0.95) },
+      { day: '2d ago', price: round(base * 0.94) },
+      { day: 'Yesterday', price: round(base * 0.98) },
+      { day: 'Today', price: round(base) }
     ];
   } else if (trend === 'down') {
     return [
-      { price: base * 1.1 }, { price: base * 1.08 }, { price: base * 1.09 },
-      { price: base * 1.05 }, { price: base * 1.06 }, { price: base * 1.02 }, { price: base }
+      { day: '6d ago', price: round(base * 1.10) },
+      { day: '5d ago', price: round(base * 1.08) },
+      { day: '4d ago', price: round(base * 1.09) },
+      { day: '3d ago', price: round(base * 1.05) },
+      { day: '2d ago', price: round(base * 1.06) },
+      { day: 'Yesterday', price: round(base * 1.02) },
+      { day: 'Today', price: round(base) }
     ];
   } else {
     return [
-      { price: base * 0.99 }, { price: base * 1.01 }, { price: base * 0.98 },
-      { price: base * 1.02 }, { price: base * 0.99 }, { price: base * 1.01 }, { price: base }
+      { day: '6d ago', price: round(base * 0.99) },
+      { day: '5d ago', price: round(base * 1.01) },
+      { day: '4d ago', price: round(base * 0.98) },
+      { day: '3d ago', price: round(base * 1.02) },
+      { day: '2d ago', price: round(base * 0.99) },
+      { day: 'Yesterday', price: round(base * 1.01) },
+      { day: 'Today', price: round(base) }
     ];
   }
 };
@@ -425,16 +441,44 @@ export const Market: React.FC<MarketProps> = ({ onBack, onSelectCrop, language }
                 <h2 className="text-lg font-bold text-earth mb-3">My Watchlist</h2>
                 <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4">
                   {WATCHLIST_CROPS.map(crop => (
-                    <div key={crop.id} className="min-w-[150px] bg-white p-5 rounded-2xl shadow-md border border-gray-200 shrink-0 hover:shadow-lg transition-shadow">
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="text-2xl">{crop.icon}</span>
-                        <div className={`flex items-center text-xs font-bold ${crop.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                          {crop.trend === 'up' ? <TrendingUp size={12} className="mr-0.5" /> : <TrendingDown size={12} className="mr-0.5" />}
-                          {crop.changePercent}%
+                    <div key={crop.id} className="min-w-[170px] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 shrink-0 hover:shadow-md transition-all flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-2xl">{crop.icon}</span>
+                          <div className={`flex items-center text-xs font-black px-2 py-0.5 rounded-full ${
+                            crop.trend === 'up' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'
+                          }`}>
+                            {crop.trend === 'up' ? <TrendingUp size={11} className="mr-0.5" /> : <TrendingDown size={11} className="mr-0.5" />}
+                            {crop.changePercent}%
+                          </div>
                         </div>
+                        <h3 className="font-extrabold text-earth text-sm">{crop.name}</h3>
+                        <p className="text-base font-black text-earth mt-0.5">₹{crop.price.toLocaleString()}<span className="text-[11px] font-normal text-gray-400">/q</span></p>
                       </div>
-                      <h3 className="font-bold text-earth text-sm">{crop.name}</h3>
-                      <p className="text-lg font-bold text-earth mt-1">₹{crop.price}</p>
+
+                      {/* Mini Sparkline in Watchlist */}
+                      <div className="h-8 w-full mt-2 bg-slate-50/70 rounded-xl p-1 border border-slate-100 overflow-hidden">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={getMockHistoricalData(crop.price, crop.trend)}>
+                            <defs>
+                              <linearGradient id={`wl-grad-${crop.id}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={crop.trend === 'up' ? '#10B981' : '#EF4444'} stopOpacity={0.5}/>
+                                <stop offset="100%" stopColor={crop.trend === 'up' ? '#10B981' : '#EF4444'} stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <YAxis hide domain={['dataMin - (dataMin * 0.05)', 'dataMax + (dataMax * 0.05)']} />
+                            <Area 
+                              type="monotone" 
+                              dataKey="price" 
+                              stroke={crop.trend === 'up' ? '#059669' : '#DC2626'} 
+                              strokeWidth={2}
+                              fillOpacity={1} 
+                              fill={`url(#wl-grad-${crop.id})`} 
+                              isAnimationActive={false}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -490,95 +534,140 @@ export const Market: React.FC<MarketProps> = ({ onBack, onSelectCrop, language }
                       transition={{ delay: index * 0.05 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onSelectCrop(crop)}
-                      className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between"
+                      className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs hover:shadow-md border border-gray-200/80 hover:border-emerald-300 transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                     >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex gap-3">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                      crop.category === 'Grains' ? 'bg-amber-100' : 
-                      crop.category === 'Vegetables' ? 'bg-purple-100' : 
-                      crop.category === 'Oilseeds' ? 'bg-yellow-100' : 'bg-orange-100'
+                <div className="flex justify-between items-start gap-3 mb-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                      crop.category === 'Grains' ? 'bg-amber-100/80 text-amber-900' : 
+                      crop.category === 'Vegetables' ? 'bg-purple-100/80 text-purple-900' : 
+                      crop.category === 'Oilseeds' ? 'bg-yellow-100/80 text-yellow-900' : 'bg-orange-100/80 text-orange-900'
                     }`}>
                       <span className="text-2xl">{crop.icon}</span>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-earth leading-tight">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-extrabold text-gray-900 group-hover:text-[#003527] transition-colors leading-tight truncate">
                         {crop.name} 
-                        <span className="text-sm font-medium text-gray-500">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-500 ml-1">
                           | {language === 'hi' ? crop.nameHi : language === 'kn' ? crop.nameKn : crop.name}
                         </span>
                       </h3>
                       <div className="flex flex-col gap-1 mt-1">
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <Store size={12} />
-                          {crop.mandi}
+                        <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                          <Store size={12} className="text-[#003527]" />
+                          <span className="truncate">{crop.mandi}</span>
                         </p>
-                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary-dark/60 bg-primary/5 px-2 py-0.5 rounded-full">
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#003527] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
                             {crop.category}
                           </span>
-                          <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
+                          <span className="bg-purple-50 text-purple-700 border border-purple-200/60 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 whitespace-nowrap">
                             🤖 AI: {crop.trend === 'up' ? '+5%' : crop.trend === 'down' ? '-3%' : 'Stable'} next week
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-earth">₹{crop.price.toLocaleString()}<span className="text-sm font-normal text-gray-500">/q</span></p>
-                    <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold mt-1 ${
-                      crop.trend === 'up' ? 'bg-green-100 text-green-700' : 
-                      crop.trend === 'down' ? 'bg-red-100 text-red-700' : 
-                      'bg-gray-100 text-gray-600'
+                  <div className="text-right shrink-0">
+                    <p className="text-lg sm:text-xl font-black text-gray-900">₹{crop.price.toLocaleString()}<span className="text-xs font-medium text-gray-500">/q</span></p>
+                    <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold mt-1 shadow-2xs ${
+                      crop.trend === 'up' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 
+                      crop.trend === 'down' ? 'bg-red-50 text-red-800 border border-red-200' : 
+                      'bg-gray-100 text-gray-700 border border-gray-200'
                     }`}>
-                      {crop.trend === 'up' ? <TrendingUp size={12} className="mr-1" /> : 
-                       crop.trend === 'down' ? <TrendingDown size={12} className="mr-1" /> : 
+                      {crop.trend === 'up' ? <TrendingUp size={12} className="mr-1 text-emerald-600" /> : 
+                       crop.trend === 'down' ? <TrendingDown size={12} className="mr-1 text-red-600" /> : 
                        <Minus size={12} className="mr-1" />}
                       {crop.change > 0 ? '+' : ''}₹{Math.abs(crop.change)} ({crop.changePercent}%)
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-end justify-between">
-                  <div className="flex flex-col gap-2">
-                    <div className="text-xs text-gray-500">
-                      <p>Price Trend (7 Days)</p>
+                <div className="mt-3.5 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">7D Trend</span>
+                      <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                        crop.trend === 'up' ? 'text-emerald-800 bg-emerald-50 border border-emerald-200/50' : 
+                        crop.trend === 'down' ? 'text-red-800 bg-red-50 border border-red-200/50' : 
+                        'text-gray-700 bg-gray-100 border border-gray-200'
+                      }`}>
+                        {crop.trend === 'up' ? '↗ Bullish' : crop.trend === 'down' ? '↘ Bearish' : '→ Stable'}
+                      </span>
                     </div>
                     <button 
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedCropForAlert(crop);
                         setAlertModalOpen(true);
                         setAlertThreshold(crop.price.toString());
                       }}
-                      className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md transition-colors ${
+                      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all self-start cursor-pointer active:scale-95 ${
                         alerts[crop.id] 
-                          ? 'bg-primary/10 text-primary' 
-                          : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                          ? 'bg-[#003527] text-white shadow-2xs' 
+                          : 'bg-[#F9FAF8] text-gray-700 hover:bg-emerald-50 hover:text-[#003527] border border-gray-200'
                       }`}
                     >
-                      <Bell size={12} className={alerts[crop.id] ? 'fill-primary' : ''} />
-                      {alerts[crop.id] ? 'Alert Set' : 'Set Alert'}
+                      <Bell size={11} className={alerts[crop.id] ? 'fill-white' : ''} />
+                      <span>{alerts[crop.id] ? 'Alert Set' : 'Set Alert'}</span>
                     </button>
                   </div>
-                  <div className="h-10 w-28">
+
+                  {/* Beautified Sparkline Graph */}
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-12 w-32 sm:w-36 bg-gradient-to-b from-slate-50/90 to-slate-100/60 hover:from-slate-100/90 hover:to-slate-200/60 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs transition-all relative overflow-hidden shrink-0 group/sparkline"
+                  >
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={getMockHistoricalData(crop.price, crop.trend)}>
+                      <AreaChart data={getMockHistoricalData(crop.price, crop.trend)} margin={{ top: 3, right: 2, left: 2, bottom: 0 }}>
                         <defs>
                           <linearGradient id={`colorPrice-${crop.id}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={crop.trend === 'up' ? '#22c55e' : crop.trend === 'down' ? '#ef4444' : '#9ca3af'} stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor={crop.trend === 'up' ? '#22c55e' : crop.trend === 'down' ? '#ef4444' : '#9ca3af'} stopOpacity={0}/>
+                            <stop 
+                              offset="0%" 
+                              stopColor={crop.trend === 'up' ? '#10B981' : crop.trend === 'down' ? '#EF4444' : '#6366F1'} 
+                              stopOpacity={0.65}
+                            />
+                            <stop 
+                              offset="45%" 
+                              stopColor={crop.trend === 'up' ? '#059669' : crop.trend === 'down' ? '#DC2626' : '#4F46E5'} 
+                              stopOpacity={0.25}
+                            />
+                            <stop 
+                              offset="100%" 
+                              stopColor={crop.trend === 'up' ? '#047857' : crop.trend === 'down' ? '#B91C1C' : '#4338CA'} 
+                              stopOpacity={0.0}
+                            />
                           </linearGradient>
+                          <filter id={`glow-${crop.id}`} x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor={crop.trend === 'up' ? '#10B981' : crop.trend === 'down' ? '#EF4444' : '#6366F1'} floodOpacity="0.35"/>
+                          </filter>
                         </defs>
-                        <YAxis hide domain={['dataMin - (dataMin * 0.1)', 'dataMax + (dataMax * 0.1)']} />
+                        <YAxis hide domain={['dataMin - (dataMin * 0.06)', 'dataMax + (dataMax * 0.06)']} />
+                        <Tooltip 
+                          cursor={{ stroke: crop.trend === 'up' ? '#10B981' : '#EF4444', strokeWidth: 1, strokeDasharray: '2 2' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-slate-900/95 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-xl border border-white/10 pointer-events-none whitespace-nowrap">
+                                  ₹{payload[0].value?.toLocaleString()}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
                         <Area 
                           type="monotone" 
                           dataKey="price" 
-                          stroke={crop.trend === 'up' ? '#22c55e' : crop.trend === 'down' ? '#ef4444' : '#9ca3af'} 
-                          strokeWidth={2}
+                          stroke={crop.trend === 'up' ? '#059669' : crop.trend === 'down' ? '#DC2626' : '#4F46E5'} 
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                           fillOpacity={1} 
                           fill={`url(#colorPrice-${crop.id})`} 
                           isAnimationActive={false}
+                          style={{ filter: `url(#glow-${crop.id})` }}
                         />
                       </AreaChart>
                     </ResponsiveContainer>

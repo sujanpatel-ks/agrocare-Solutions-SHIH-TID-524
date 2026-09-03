@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Droplets, Leaf, Beaker, Sprout, AlertCircle, CheckCircle2, Loader2, Info, Sparkles, MessageSquare, Send, X, Globe, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Droplets, Leaf, Beaker, Sprout, AlertCircle, CheckCircle2, Loader2, Info, Sparkles, MessageSquare, Send, X, Globe, HelpCircle, PackageCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Language } from '../types';
 import { analyzeSoil, SoilData, SoilAnalysisResult } from '../services/gemini';
 import { chatWithModelRouter, subscribeToModelStatus, ModelStatus } from '../services/gemma';
 import { useConnectivity } from '../services/connectivity';
+import { getProductDetails } from '../utils/productImages';
 
 interface SoilAnalysisProps {
   onBack: () => void;
@@ -409,48 +410,65 @@ Please provide concise, practical, action-oriented, and direct agricultural advi
               {/* Crop Fertilizer Recommendations */}
               {result.cropFertilizerRecommendations && result.cropFertilizerRecommendations.length > 0 && (
                 <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Droplets size={16} className="text-blue-500" />
-                    Crop-Specific Fertilizer Guide
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Droplets size={16} className="text-blue-500" />
+                      Crop-Specific Fertilizer Guide
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                      <PackageCheck size={12} /> Real Product Pack
+                    </span>
                   </h3>
                   <div className="space-y-4">
-                    {result.cropFertilizerRecommendations.map((rec, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-black text-earth text-lg">{rec.crop}</h4>
-                          <button
-                            onClick={() => {
-                              setActiveCropContext(rec.crop);
-                              handleAskFertilizerAI(language === 'hi' ? `${rec.crop} के लिए जैविक खाद और छिड़काव की सर्वोत्तम विधि क्या है?` : language === 'kn' ? `${rec.crop} ಬೆಳೆಗೆ ಸಾವಯವ ಗೊಬ್ಬರ ಮತ್ತು ಉತ್ತಮ ಸಿಂಪರಣಾ ವಿಧಾನ ಯಾವುದು?` : `What is the best organic substitute and application technique for ${rec.crop}?`);
-                            }}
-                            className="text-xs font-bold text-[#1B5E20] hover:text-[#144d18] flex items-center gap-1 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-all border border-green-100"
-                          >
-                            <Sparkles size={11} className="animate-pulse" />
-                            {language === 'hi' ? 'पूछें' : language === 'kn' ? 'ಕೇಳಿ' : 'Ask AI'}
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 text-sm">
-                          <div className="flex items-start gap-2">
-                            <span className="font-bold text-gray-500 min-w-[80px]">Type:</span>
-                            <span className="text-earth font-medium">{rec.type}</span>
+                    {result.cropFertilizerRecommendations.map((rec, idx) => {
+                      const prod = getProductDetails(rec.type, rec.type.toLowerCase().includes('compost') || rec.type.toLowerCase().includes('organic'));
+                      return (
+                        <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col sm:flex-row gap-4">
+                          <div className="shrink-0 self-center sm:self-start">
+                            <img 
+                              src={prod.imageUrl} 
+                              alt={rec.type}
+                              className="w-20 h-20 rounded-xl object-cover ring-1 ring-gray-200 shadow-xs"
+                              referrerPolicy="no-referrer"
+                            />
+                            <span className="block text-center text-[9px] font-bold text-gray-500 mt-1">
+                              {prod.packagingSize}
+                            </span>
                           </div>
-                          <div className="grid grid-cols-2 gap-3 mt-1">
-                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                              <span className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Qty / Acre</span>
-                              <span className="block text-blue-900 font-black text-base leading-tight">{rec.quantityPerAcre}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <div>
+                                <h4 className="font-black text-earth text-base">{rec.crop}</h4>
+                                <p className="text-xs font-bold text-emerald-800">{rec.type} ({prod.brand})</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setActiveCropContext(rec.crop);
+                                  handleAskFertilizerAI(language === 'hi' ? `${rec.crop} के लिए जैविक खाद और छिड़काव की सर्वोत्तम विधि क्या है?` : language === 'kn' ? `${rec.crop} ಬೆಳೆಗೆ ಸಾವಯವ ಗೊಬ್ಬರ ಮತ್ತು ಉತ್ತಮ ಸಿಂಪರಣಾ ವಿಧಾನ ಯಾವುದು?` : `What is the best organic substitute and application technique for ${rec.crop}?`);
+                                }}
+                                className="text-xs font-bold text-[#1B5E20] hover:text-[#144d18] flex items-center gap-1 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-all border border-green-100"
+                              >
+                                <Sparkles size={11} className="animate-pulse" />
+                                {language === 'hi' ? 'पूछें' : language === 'kn' ? 'ಕೇಳಿ' : 'Ask AI'}
+                              </button>
                             </div>
-                            <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                              <span className="block text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Frequency</span>
-                              <span className="block text-green-900 font-black text-base leading-tight">{rec.frequency}</span>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+                                <span className="block text-[9px] font-black text-blue-500 uppercase tracking-widest">Qty / Acre</span>
+                                <span className="block text-blue-900 font-bold text-xs">{rec.quantityPerAcre}</span>
+                              </div>
+                              <div className="bg-green-50 p-2.5 rounded-xl border border-green-100">
+                                <span className="block text-[9px] font-black text-green-600 uppercase tracking-widest">Frequency</span>
+                                <span className="block text-green-900 font-bold text-xs">{rec.frequency}</span>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-start gap-2 mt-1">
-                            <span className="font-bold text-gray-500 min-w-[80px]">Method:</span>
-                            <span className="text-earth font-medium">{rec.applicationMethod}</span>
+                            <p className="text-xs text-gray-600 mt-2 font-medium">
+                              <span className="font-bold text-gray-700">Method: </span>{rec.applicationMethod}
+                            </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

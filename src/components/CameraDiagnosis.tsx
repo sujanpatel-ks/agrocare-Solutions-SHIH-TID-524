@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, X, Zap, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FoliageBiometricHUD } from './FoliageBiometricHUD';
 
 interface CameraDiagnosisProps {
   onCapture: (base64: string) => void;
@@ -84,15 +85,8 @@ export const CameraDiagnosis: React.FC<CameraDiagnosisProps> = ({ onCapture, onC
           />
         )}
 
-        {/* Viewfinder Overlay */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-64 h-64 border-2 border-white/30 rounded-3xl relative">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl"></div>
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
-          </div>
-        </div>
+        {/* Advanced Foliage Biometric HUD Scanner with Laser Reticle Sweep */}
+        <FoliageBiometricHUD isScanning={isActive} cropLabel="Foliar Target" showTelemetry={true} />
 
         {/* Flash Effect */}
         <AnimatePresence>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Bell, Calendar as CalendarIcon, ChevronRight, Droplets, Bug, Sprout, Camera, Info, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Bell, Calendar as CalendarIcon, ChevronRight, Droplets, Bug, Sprout, Camera, Info, Loader2, AlertTriangle, Volume2, Pause, Play, Square, Mic, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TASKS, RECOMMENDED_CROPS } from '../constants';
 import { Task, Language } from '../types';
 import { getRealTimeWeather, WeatherData, getWeatherForecast, ForecastDay } from '../services/gemini';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { WeatherForecast } from './WeatherForecast';
+import { speechService } from '../services/speechSynthesisService';
+import { VoiceTaskModal } from './VoiceTaskModal';
 
 interface CalendarProps {
   onBack: () => void;
@@ -23,7 +25,56 @@ export const Calendar: React.FC<CalendarProps> = ({ onBack, tasks, onToggleTask,
   const [forecastLoading, setForecastLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'urgent' | 'normal'>('all');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const { latitude, longitude, loading: locationLoading, error: locationError } = useGeolocation();
+
+  const handleSpeakAllUrgent = () => {
+    const urgentTasks = tasks.filter(t => !t.completed && t.urgent);
+    if (urgentTasks.length === 0) {
+      const allPending = tasks.filter(t => !t.completed);
+      const textToSpeak = allPending.length > 0
+        ? speechService.formatUrgentTasksSpeechText(allPending, language)
+        : (language === 'hi' ? 'सभी कार्य पूर्ण हो चुके हैं!' : language === 'kn' ? 'ಎಲ್ಲಾ ಕಾರ್ಯಗಳು ಮುಗಿದಿವೆ!' : 'All farm tasks are completed! Great work.');
+      speechService.speak(textToSpeak, language, {
+        onStart: () => { setIsSpeaking(true); setIsPaused(false); },
+        onEnd: () => { setIsSpeaking(false); setIsPaused(false); },
+        onError: () => { setIsSpeaking(false); setIsPaused(false); }
+      });
+      return;
+    }
+
+    const textToSpeak = speechService.formatUrgentTasksSpeechText(urgentTasks, language);
+    speechService.speak(textToSpeak, language, {
+      onStart: () => { setIsSpeaking(true); setIsPaused(false); },
+      onEnd: () => { setIsSpeaking(false); setIsPaused(false); },
+      onError: () => { setIsSpeaking(false); setIsPaused(false); },
+      onPause: () => setIsPaused(true),
+      onResume: () => setIsPaused(false)
+    });
+  };
+
+  const handleSpeakSingleTask = (task: Task) => {
+    const taskTitle = language === 'hi' ? task.titleHi : language === 'kn' ? task.titleKn : task.title;
+    const text = language === 'hi' 
+      ? `कार्य: ${taskTitle}। ${task.description}। स्थिति: ${task.completed ? 'पूर्ण' : 'लंबित'}। ${task.urgent ? 'यह एक ज़रूरी कार्य है।' : ''}`
+      : language === 'kn'
+        ? `ಕಾರ್ಯ: ${taskTitle}. ${task.description}. ಸ್ಥಿತಿ: ${task.completed ? 'ಪೂರ್ಣಗೊಂಡಿದೆ' : 'ಬಾಕಿ ಇದೆ'}. ${task.urgent ? 'ಇದು ತುರ್ತು ಕಾರ್ಯವಾಗಿದೆ.' : ''}`
+        : `Task: ${task.title}. ${task.description}. Status: ${task.completed ? 'Completed' : 'Pending'}. ${task.urgent ? 'This is marked as urgent.' : ''}`;
+
+    speechService.speak(text, language, {
+      onStart: () => { setIsSpeaking(true); setIsPaused(false); },
+      onEnd: () => { setIsSpeaking(false); setIsPaused(false); },
+      onError: () => { setIsSpeaking(false); setIsPaused(false); }
+    });
+  };
+
+  const handleStopSpeech = () => {
+    speechService.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+  };
 
   useEffect(() => {
     if (latitude && longitude) {
@@ -237,11 +288,68 @@ export const Calendar: React.FC<CalendarProps> = ({ onBack, tasks, onToggleTask,
 
         {/* Tasks */}
         <div className="flex-1">
-          <div className="flex justify-between items-end mb-6">
-            <h2 className="text-lg font-black text-earth tracking-tight">
-              Tasks for Today <span className="block text-sm font-bold text-gray-400 tracking-normal">{language === 'hi' ? 'आज के कार्य' : language === 'kn' ? 'ಇಂದಿನ ಕೆಲಸಗಳು' : "Today's tasks"}</span>
-            </h2>
-            <button className="text-xs font-black text-[#1B5E20] hover:underline">View All</button>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-black text-earth tracking-tight flex items-center gap-2">
+                <span>Tasks for Today</span>
+                {tasks.some(t => !t.completed && t.urgent) && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200 animate-pulse">
+                    Urgent Pending
+                  </span>
+                )}
+              </h2>
+              <span className="text-xs font-bold text-gray-400">
+                {language === 'hi' ? 'आज के कार्य' : language === 'kn' ? 'ಇಂದಿನ ಕೆಲಸಗಳು' : "Today's farm tasks"}
+              </span>
+            </div>
+
+            {/* Voice Audio Readout & Voice Note Actions */}
+            <div className="flex items-center gap-2">
+              {/* Add Voice Note Button */}
+              <button
+                onClick={() => {
+                  handleStopSpeech();
+                  setIsVoiceModalOpen(true);
+                }}
+                className="px-3 py-2 rounded-2xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                title="Add task via voice"
+              >
+                <Mic size={14} />
+                <span>{language === 'hi' ? 'वॉइस नोट' : language === 'kn' ? 'ಧ್ವನಿ ನೋಟ್' : 'Voice Note'}</span>
+              </button>
+
+              {!isSpeaking ? (
+                <button 
+                  onClick={handleSpeakAllUrgent}
+                  className="px-3.5 py-2 rounded-2xl bg-[#1B5E20] hover:bg-[#2E7D32] text-white text-xs font-black shadow-md shadow-green-900/15 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+                  title="Read aloud urgent tasks"
+                >
+                  <Volume2 size={15} />
+                  <span>{language === 'hi' ? 'ज़रूरी कार्य सुनें' : language === 'kn' ? 'ತುರ್ತು ಕಾರ್ಯ ಆಲಿಸಿ' : 'Hear Urgent Tasks'}</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-emerald-950 text-white px-3 py-1.5 rounded-2xl shadow-md border border-emerald-500/30">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>{isPaused ? 'Paused' : 'Speaking...'}</span>
+                  </span>
+                  <button
+                    onClick={isPaused ? () => { speechService.resume(); setIsPaused(false); } : () => { speechService.pause(); setIsPaused(true); }}
+                    className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer ml-1"
+                    title={isPaused ? "Resume" : "Pause"}
+                  >
+                    {isPaused ? <Play size={13} className="fill-current" /> : <Pause size={13} />}
+                  </button>
+                  <button
+                    onClick={handleStopSpeech}
+                    className="p-1 rounded-lg hover:bg-white/20 text-red-300 hover:text-red-200 cursor-pointer"
+                    title="Stop Voice"
+                  >
+                    <Square size={13} className="fill-current" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* New Filter Options */}
@@ -327,7 +435,17 @@ export const Calendar: React.FC<CalendarProps> = ({ onBack, tasks, onToggleTask,
                     </div>
                     <p className={`text-xs text-gray-500 leading-relaxed transition-all ${task.completed ? 'opacity-40' : ''}`}>{task.description}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-2 ml-2">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 ml-2 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeakSingleTask(task);
+                      }}
+                      className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-earth border border-gray-200 transition-colors shadow-xs"
+                      title="Read this task aloud"
+                    >
+                      <Volume2 size={14} />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -368,6 +486,16 @@ export const Calendar: React.FC<CalendarProps> = ({ onBack, tasks, onToggleTask,
           </div>
         </div>
       </div>
+
+      {/* Voice Task Recording Modal */}
+      {onAddTask && (
+        <VoiceTaskModal
+          isOpen={isVoiceModalOpen}
+          onClose={() => setIsVoiceModalOpen(false)}
+          onAddTask={onAddTask}
+          language={language}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { getIsOnline } from './connectivity';
 import { chatWithAssistant } from './gemini';
+import { Language } from '../types';
 
 // Define the active model type
 export type AIModel = 'gemini' | 'gemma';
@@ -43,26 +44,35 @@ function updateStatus(model: AIModel, isFallback: boolean) {
 }
 
 // Local Gemma offline knowledge engine
-export function getGemmaOfflineResponse(message: string, language: 'en' | 'hi' | 'kn' = 'en'): string {
+export function getGemmaOfflineResponse(message: string, language: Language = 'en'): string {
   const query = message.toLowerCase();
   
-  const intro = {
+  const intro: Record<string, string> = {
     en: "🤖 **Gemma (Offline Edge AI)**: Working in local offline resilience mode. Here is the verified sustainable farming guidance from our on-device ICAR ITK knowledge base:",
     hi: "🤖 **Gemma (ऑफ़लाइन एआई)**: स्थानीय ऑफ़लाइन मोड सक्रिय है। हमारे ऑन-डिवाइस ICAR ITK डेटाबेस से प्रमाणित कृषि सलाह निम्नलिखित है:",
-    kn: "🤖 **Gemma (ಆಫ್‌ಲೈನ್ ಎಐ)**: ಸ್ಥಳೀಯ ಆಫ್‌ಲೈನ್ ಮೋಡ್ ಸಕ್ರಿಯವಾಗಿದೆ. ನಮ್ಮ ಆನ್‌-ಡಿವೈಸ್ ಕೃಷಿ ಜ್ಞಾನಕೋಶದಿಂದ ದೃಢೀಕರಿಸಲ್ಪಟ್ಟ ಸಲಹೆ ಹೀಗಿದೆ:"
+    kn: "🤖 **Gemma (ಆಫ್‌ಲೈನ್ ಎಐ)**: ಸ್ಥಳೀಯ ಆಫ್‌ಲೈನ್ ಮೋಡ್ ಸಕ್ರಿಯವಾಗಿದೆ. ನಮ್ಮ ಆನ್‌-ಡಿವೈಸ್ ಕೃಷಿ ಜ್ಞಾನಕೋಶದಿಂದ ದೃಢೀಕರಿಸಲ್ಪಟ್ಟ ಸಲಹೆ ಹೀಗಿದೆ:",
+    ta: "🤖 **Gemma (ஆஃப்லைன் AI)**: உள்ளூர் ஆஃப்லைன் பயன்முறையில் செயல்படுகிறது. எங்கள் ICAR ITK தரவுத்தளத்திலிருந்து சரிபார்க்கப்பட்ட வேளாண் வழிகாட்டுதல்:",
+    te: "🤖 **Gemma (ఆఫ్‌లైన్ AI)**: స్థానిక ఆఫ్‌లైన్ మోడ్‌లో పనిచేస్తోంది. మా ICAR ITK డేటాబేస్ నుండి ధృవీకరించబడిన వ్యవసాయ మార్గదర్శకత్వం:",
+    mr: "🤖 **Gemma (ऑफलाइन एआय)**: स्थानिक ऑफलाइन मोडमध्ये कार्य करत आहे. आमच्या ICAR ITK डेटाबेसमधील प्रमाणित शेती मार्गदर्शन:"
   };
 
-  const footer = {
+  const footer: Record<string, string> = {
     en: "\n\n*This response was generated entirely offline on your device using Gemma-2B Optimized Edge rules.*",
     hi: "\n\n*यह उत्तर पूरी तरह से आपके डिवाइस पर ऑफ़लाइन जेम्मा (Gemma-2B) एआई द्वारा तैयार किया गया है।*",
-    kn: "\n\n*ಈ ಉತ್ತರವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಜೆಮ್ಮಾ (Gemma-2B) ಎಐ ಮೂಲಕ ಸಿದ್ಧಪಡಿಸಲಾಗಿದೆ.*"
+    kn: "\n\n*ಈ ಉತ್ತರವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಜೆಮ್ಮಾ (Gemma-2B) ಎಐ ಮೂಲಕ ಸಿದ್ಧಪಡಿಸಲಾಗಿದೆ.*",
+    ta: "\n\n*இந்த பதில் உங்கள் சாதனத்தில் ஆஃப்லைனில் Gemma-2B எட்ஜ் விதிகளைப் பயன்படுத்தி உருவாக்கப்பட்டது.*",
+    te: "\n\n*ఈ ప్రతిస్పందన మీ పరికరంలో పూర్తిగా ఆఫ్‌లైన్‌లో Gemma-2B ఎడ్జ్ నియమాలను ఉపయోగించి రూపొందించబడింది.*",
+    mr: "\n\n*हे उत्तर आपल्या डिव्हाइसवर पूर्णपणे ऑफलाइन Gemma-2B एआय द्वारे तयार केले गेले आहे.*"
   };
 
+  const currentIntro = intro[language] || intro.en;
+  const currentFooter = footer[language] || footer.en;
+
   // 1. Disease / Crop Protection matches
-  if (query.includes('termite') || query.includes('दीमक') || query.includes('ಗೆದ್ದಲು')) {
-    return `${intro[language]}
+  if (query.includes('termite') || query.includes('दीमक') || query.includes('ಗೆದ್ದಲು') || query.includes('கரையான்') || query.includes('చెదలు') || query.includes('वाळवी')) {
+    return `${currentIntro}
     
-**${language === 'hi' ? 'दीमक नियंत्रण (Termite Management):' : language === 'kn' ? 'ಗೆದ್ದಲು ನಿಯಂತ್ರಣ (Termite Management):' : 'Eco-friendly Termite Management:'}**
+**${language === 'hi' ? 'दीमक नियंत्रण (Termite Management):' : language === 'kn' ? 'ಗೆದ್ದಲು ನಿಯಂತ್ರಣ (Termite Management):' : language === 'ta' ? 'கரையான் கட்டுப்பாடு:' : language === 'te' ? 'చెదపురుగుల నియంత్రణ:' : language === 'mr' ? 'वाळवी नियंत्रण:' : 'Eco-friendly Termite Management:'}**
 1. **${language === 'hi' ? 'मकई भुट्टा ट्रैप' : language === 'kn' ? 'ಮೆಕ್ಕೆಜೋಳದ ತೆನೆ ಟ್ರ್ಯಾಪ್' : 'Corn Cob Traps'}**: ${
       language === 'hi' ? 'मकई के भुट्टे को पानी में भिगोकर मिट्टी में गाड़ दें। दीमक इसकी ओर आकर्षित होंगे, जिसे बाद में आसानी से नष्ट किया जा सकता है।' : 
       language === 'kn' ? 'ನೆನೆಸಿದ ಮೆಕ್ಕೆಜೋಳದ ತೆನೆಯನ್ನು ಮಣ್ಣಿನಲ್ಲಿ ಹೂತುಹಾಕಿ. ಗೆದ್ದಲುಗಳು ಇದರ ಕಡೆಗೆ ಆಕರ್ಷಿತವಾಗುತ್ತವೆ, ನಂತರ ಅವುಗಳನ್ನು ಸುಲಭವಾಗಿ ನಾಶಪಡಿಸಬಹುದು.' : 
@@ -78,11 +88,11 @@ export function getGemmaOfflineResponse(message: string, language: 'en' | 'hi' |
       language === 'kn' ? 'ಉಳುಮೆ ಮಾಡುವ ಮುನ್ನ ಹೊಲದಲ್ಲಿ ಒಣಗಿದ ಪೈನ್ ಎಲೆಗಳನ್ನು ಸುಟ್ಟು ಹಾಕಿ, ಇದರಿಂದ ಗೆದ್ದಲು ಮತ್ತು ಬಿಳಿ ಹುಳುಗಳು ನಾಶವಾಗುತ್ತವೆ.' : 
       'Burn dry pine leaves in the fields before ploughing to eliminate soil-dwelling termites and white grubs.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
-  if (query.includes('aphid') || query.includes('sucking') || query.includes('माहू') || query.includes('कीट') || query.includes('ಕೀಟ')) {
-    return `${intro[language]}
+  if (query.includes('aphid') || query.includes('sucking') || query.includes('माहू') || query.includes('कीट') || query.includes('ಕೀಟ') || query.includes('அசுவினி') || query.includes('పేను')) {
+    return `${currentIntro}
 
 **${language === 'hi' ? 'माहू और रसचूसक कीट नियंत्रण:' : language === 'kn' ? 'ಕೀಟ ಮತ್ತು ರಸ ಹೀರುವ ಹುಳುಗಳ ನಿಯಂತ್ರಣ:' : 'Aphid & Sucking Pest Management:'}**
 1. **${language === 'hi' ? 'लकड़ी की राख (Wood Ash)' : language === 'kn' ? 'ಮರದ ಬೂದಿ (Wood Ash)' : 'Wood Ash Dusting'}**: ${
@@ -100,11 +110,11 @@ ${footer[language]}`;
       language === 'kn' ? 'ದನದ ಮೂತ್ರ ಮತ್ತು ಬೇವಿನ ಎಲೆಗಳನ್ನು ನೀರಿನಲ್ಲಿ ಕುದಿಸಿ ಸಿದ್ಧಪಡಿಸಿದ ಕಷಾಯವು ರಸಹೀರುವ ಕೀಟಗಳಿಗೆ ಅತ್ಯುತ್ತಮ ಪರಿಹಾರ.' : 
       'Boil neem leaves in diluted cow urine, ferment for 48 hours, and spray to eliminate all types of sucking pests safely.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
-  if (query.includes('paddy') || query.includes('rice') || query.includes('धान') || query.includes('चावल') || query.includes('ಭತ್ತ') || query.includes('ಅಕ್ಕಿ')) {
-    return `${intro[language]}
+  if (query.includes('paddy') || query.includes('rice') || query.includes('धान') || query.includes('चावल') || query.includes('ಭತ್ತ') || query.includes('ಅಕ್ಕಿ') || query.includes('நெல்') || query.includes('వరి')) {
+    return `${currentIntro}
 
 **${language === 'hi' ? 'धान की फसल सुरक्षा उपाय:' : language === 'kn' ? 'ಭತ್ತದ ಬೆಳೆ ಸಂರಕ್ಷಣಾ ವಿಧಾನಗಳು:' : 'Sustainable Paddy/Rice Management:'}**
 1. **${language === 'hi' ? 'ब्लास्ट रोग के लिए निर्गुंडी (Vitex) का उपयोग' : language === 'kn' ? 'ಬ್ಲಾಸ್ಟ್ ರೋಗಕ್ಕೆ ಲಕ್ಕಿ ಸೊಪ್ಪಿನ ಬಳಕೆ' : 'Vitex negundo (Chaste Tree) for Rice Blast'}**: ${
@@ -122,11 +132,11 @@ ${footer[language]}`;
       language === 'kn' ? 'ಹೊಲದ ಬದಿಗಳಲ್ಲಿ ಕಾಡು ಕಬ್ಬನ್ನು ಬೆಳೆಸಿ. ಇದು ಎಲೆ ಸುತ್ತುವ ಹುಳುಗಳನ್ನು ತಿನ್ನುವ ಜೇಡಗಳಿಗೆ ಆಶ್ರಯ ನೀಡುತ್ತದೆ.' : 
       'Plant Saccharum spontaneum (Wild sugarcane) to provide a natural habitat for predatory spiders that consume leaf-folders.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
-  if (query.includes('mastitis') || query.includes('udder') || query.includes('थान') || query.includes('ಕೆಚ್ಚಲು') || query.includes('cow') || query.includes('गाय') || query.includes('ದನ')) {
-    return `${intro[language]}
+  if (query.includes('mastitis') || query.includes('udder') || query.includes('थान') || query.includes('ಕೆಚ್ಚಲು') || query.includes('cow') || query.includes('गाय') || query.includes('ದನ') || query.includes('பசு') || query.includes('ఆవు') || query.includes('गाय')) {
+    return `${currentIntro}
 
 **${language === 'hi' ? 'पशुधन स्वास्थ्य - थनैला रोग (Mastitis) का इलाज:' : language === 'kn' ? 'ಪಶು ಆರೋಗ್ಯ - ಕೆಚ್ಚಲು ಬಾವು (Mastitis) ಚಿಕಿತ್ಸೆ:' : 'Livestock Care - Mastitis treatment:'}**
 1. **${language === 'hi' ? 'हल्दी, फिटकरी और शहद का पेस्ट' : language === 'kn' ? 'ಅರಿಶಿನ, ಪಟಿಕ ಮತ್ತು ಜೇನುತುಪ್ಪದ ಪೇಸ್ಟ್' : 'Turmeric, Alum & Honey Paste'}**: ${
@@ -144,11 +154,11 @@ ${footer[language]}`;
       language === 'kn' ? 'ಬೆಳ್ಳುಳ್ಳಿ ಎಸಳುಗಳೊಂದಿಗೆ ಕುದಿಸಿದ ಸಾಸಿವೆ ಎಣ್ಣೆಯನ್ನು ಉಗುರುಬೆಚ್ಚಗೆ ಮಾಡಿ ಗಾಯದ ಮೇಲೆ ಹಚ್ಚಿ. ಇದು ಸೋಂಕು ತಡೆದು ಗಾಯ ಬೇಗ ಒಣಗಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ.' : 
       'Boil mustard oil with crushed garlic cloves. Allow it to cool slightly and apply to open wounds or castration marks to act as a sterile shield.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
   if (query.includes('fmd') || query.includes('foot and mouth') || query.includes('मुँहपका') || query.includes('ಖುರಮಾರಿ')) {
-    return `${intro[language]}
+    return `${currentIntro}
 
 **${language === 'hi' ? 'खुरपका-मुँहपका रोग (FMD) उपचार:' : language === 'kn' ? 'ಖುರಮಾರಿ / ಬಾಯಿ ರೋಗ ಚಿಕಿತ್ಸೆ:' : 'Foot and Mouth Disease (FMD) Management:'}**
 1. **${language === 'hi' ? 'सूखी मछली का आहार' : language === 'kn' ? 'ಒಣ ಮೀನಿನ ಆಹಾರ' : 'Dried Fish Feed'}**: ${
@@ -166,11 +176,11 @@ ${footer[language]}`;
       language === 'kn' ? 'ಗೊಬ್ಬಳಿ ಅಥವಾ ನೇರಳೆ ಮರದ ತೊಗಟೆಯನ್ನು ನೀರಿನಲ್ಲಿ ಕುದಿಸಿ ಆ ಉಗುರುಬೆಚ್ಚಗಿನ ಕಷಾಯದಿಂದ ಕಾಲಿನ ಗಾಯಗಳನ್ನು ತೊಳೆಯಿರಿ.' : 
       'Boil Babool (Acacia) and Jamun bark in water. Use this tannin-rich warm decoction to wash and sanitize hoof lesions.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
-  if (query.includes('tomato') || query.includes('wilt') || query.includes('blight') || query.includes('टमाटर') || query.includes('ಟೊಮೆಟೊ')) {
-    return `${intro[language]}
+  if (query.includes('tomato') || query.includes('wilt') || query.includes('blight') || query.includes('टमाटर') || query.includes('ಟೊಮೆಟೊ') || query.includes('தக்காளி') || query.includes('టమాటా')) {
+    return `${currentIntro}
 
 **${language === 'hi' ? 'टमाटर की फसल रोग प्रबंधन:' : language === 'kn' ? 'ಟೊಮೆಟೊ ಬೆಳೆ ರೋಗ ನಿರ್ವಹಣೆ:' : 'Tomato Disease & Protection:'}**
 1. **${language === 'hi' ? 'टमाटर विल्ट रोग रोकथाम (Wilt Control)' : language === 'kn' ? 'ಟೊಮೆಟೊ ಸೊರಗು ರೋಗ ತಡೆಗಟ್ಟುವಿಕೆ' : 'Turmeric Solution for Wilt'}**: ${
@@ -183,11 +193,11 @@ ${footer[language]}`;
       language === 'kn' ? 'ಹುಳಿ ಮಜ್ಜಿಗೆಯನ್ನು 10 ಪಟ್ಟು ನೀರಿನೊಂದಿಗೆ ಬೆರೆಸಿ ಸಿಂಪಡಿಸಿ. ಇದು ಅತ್ಯುತ್ತಮ ನೈಸರ್ಗಿಕ ಶಿಲೀಂಧ್ರನಾಶಕವಾಗಿ ಕೆಲಸ ಮಾಡುತ್ತದೆ.' : 
       'Dilute sour buttermilk 10 times with water and spray on tomato leaves. The lactic acid act as an exceptional natural fungicide against early and late blight.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
-  if (query.includes('soil') || query.includes('npk') || query.includes('ph') || query.includes('मिट्टी') || query.includes('ಮಣ್ಣು')) {
-    return `${intro[language]}
+  if (query.includes('soil') || query.includes('npk') || query.includes('ph') || query.includes('मिट्टी') || query.includes('ಮಣ್ಣು') || query.includes('மண்') || query.includes('నేల')) {
+    return `${currentIntro}
 
 **${language === 'hi' ? 'मिट्टी का स्वास्थ्य और जैविक पोषण:' : language === 'kn' ? 'ಮಣ್ಣಿನ ಆರೋಗ್ಯ ಮತ್ತು ಸಾವಯವ ಪೋಷಣೆ:' : 'Soil Health & Organic Replenishment:'}**
 1. **${language === 'hi' ? 'अम्लीय मिट्टी के लिए चूना (Lime)' : language === 'kn' ? 'ಆಮ್ಲೀಯ ಮಣ್ಣಿಗೆ ಸುಣ್ಣದ ಬಳಕೆ' : 'Acidity Correctives'}**: ${
@@ -205,12 +215,12 @@ ${footer[language]}`;
       language === 'kn' ? 'ಬೆಳೆ ಸರದಿಯಲ್ಲಿ ಹೆಸರು, ಉದ್ದು ಅಥವಾ ಕಡಲೆ ತರಹದ ದ್ವಿದಳ ಧಾನ್ಯಗಳನ್ನು ಬೆಳೆಯಿರಿ. ಇವು ವಾತಾವರಣದ ಸಾರಜನಕವನ್ನು ಮಣ್ಣಿನಲ್ಲಿ ಸ್ಥಿರೀಕರಿಸುತ್ತವೆ.' : 
       'Rotate crops with legumes like green gram or cowpea. Their root nodules house Rhizobium bacteria which naturally enrich soil Nitrogen.'
     }
-${footer[language]}`;
+${currentFooter}`;
   }
 
   // 2. Default responses for crop advice, organic treatment, conversation continuity
   if (language === 'hi') {
-    return `${intro[language]}
+    return `${currentIntro}
 
 नमस्ते! ऑफ़लाइन होने के कारण, मैं अभी मौसम और लाइव मण्डी भाव नहीं खोज सकता। लेकिन मैं आपकी फसल सुरक्षा के लिए नीचे दिए गए विषयों पर पूरी जानकारी दे सकता हूँ:
 
@@ -220,9 +230,9 @@ ${footer[language]}`;
 4. **मिट्टी की जांच और जैविक खाद सलाह**
 
 कृपया ऊपर दिए गए किसी भी विषय में या अपनी किसी फसल रोग से जुड़े सवाल पूछें। मैं आपकी सहायता के लिए तैयार हूँ।
-${footer[language]}`;
+${currentFooter}`;
   } else if (language === 'kn') {
-    return `${intro[language]}
+    return `${currentIntro}
 
 ನಮಸ್ಕಾರ! ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕವಿಲ್ಲದ ಕಾರಣ, ನಾನು ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಅಥವಾ ಲೈವ್ ಮಾರುಕಟ್ಟೆ ದರಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಿಲ್ಲ. ಆದರೆ ನಿಮ್ಮ ಬೆಳೆ ರಕ್ಷಣೆಗಾಗಿ ಕೆಳಗಿನ ವಿಷಯಗಳಲ್ಲಿ ನಾನು ವಿವರವಾದ ಮಾಹಿತಿ ನೀಡಬಲ್ಲೆ:
 
@@ -232,9 +242,9 @@ ${footer[language]}`;
 4. **ಮಣ್ಣಿನ ಪರೀಕ್ಷೆ ಮತ್ತು ಸಾವಯವ ಗೊಬ್ಬರ ಸಲಹೆ**
 
 ದಯವಿಟ್ಟು ಮೇಲಿನ ಯಾವುದಾದರೂ ವಿಷಯ ಅಥವಾ ನಿಮ್ಮ ಬೆಳೆ ರೋಗಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ. ನಾನು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಸಿದ್ಧನಿದ್ದೇನೆ.
-${footer[language]}`;
+${currentFooter}`;
   } else {
-    return `${intro[language]}
+    return `${currentIntro}
 
 Namaste! I am operating in Offline Edge Mode. While I cannot fetch live weather or Google Maps location services offline, I can guide you on sustainable farming practices:
 
@@ -244,7 +254,7 @@ Namaste! I am operating in Offline Edge Mode. While I cannot fetch live weather 
 4. **Soil Health**: Simple steps to balance NPK levels and adjust pH naturally.
 
 Please ask me a specific question about these topics or your crop! I am here to help you continuously.
-${footer[language]}`;
+${currentFooter}`;
   }
 }
 
@@ -252,7 +262,7 @@ ${footer[language]}`;
 export async function chatWithModelRouter(
   message: string, 
   history: { role: "user" | "model"; parts: { text: string }[] }[], 
-  language: 'en' | 'hi' | 'kn' = 'en', 
+  language: Language = 'en', 
   sessionId?: string
 ): Promise<string> {
   const isOnline = getIsOnline();

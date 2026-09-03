@@ -1,15 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, MoreVertical, Bot, Send, Mic, Camera, Volume2, CheckCheck, Leaf, AlertTriangle, Square, Loader2, Globe } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Bot, Send, Mic, Camera, Volume2, CheckCheck, Leaf, AlertTriangle, Square, Loader2, Globe, Sparkles, Radio } from 'lucide-react';
 import { generateSpeech, transcribeAudio } from '../services/gemini';
+import { runAgentOrchestrator, AgentResult } from '../services/agentService';
+import { AgentStepsDisplay } from './AgentStepsDisplay';
 import { Language } from '../types';
 import { useConnectivity } from '../services/connectivity';
 import { chatWithModelRouter, subscribeToModelStatus, ModelStatus } from '../services/gemma';
+import { LiveAudioChat } from './LiveAudioChat';
+import { AnimatePresence } from 'motion/react';
 
 interface Message {
   role: 'user' | 'model';
   text: string;
   time: string;
   isAlternative?: boolean;
+  agentResult?: AgentResult;
 }
 
 interface ChatProps {
@@ -55,6 +60,7 @@ export const Chat: React.FC<ChatProps> = ({ onBack, language, onToggleLanguage }
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isLiveAudioOpen, setIsLiveAudioOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [playingAudioIndex, setPlayingAudioIndex] = useState<number | null>(null);
   const [loadingAudioIndex, setLoadingAudioIndex] = useState<number | null>(null);
@@ -308,6 +314,31 @@ export const Chat: React.FC<ChatProps> = ({ onBack, language, onToggleLanguage }
     setIsLoading(true);
 
     try {
+      const isAgentRequest = /plan|spray|weather|itk|scheme|supplier|fertilizer|dose|treatment|fungicide|blight|pest/i.test(userMessage.text);
+
+      if (isAgentRequest) {
+        try {
+          const agentPlan = await runAgentOrchestrator({
+            message: userMessage.text,
+            crop: 'Tomato',
+            location: 'Karnataka, India',
+            language
+          });
+
+          const botMessage: Message = {
+            role: 'model',
+            text: agentPlan.reasoning_summary || "Here is your multi-step evidence-based agricultural action plan:",
+            agentResult: agentPlan,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+
+          setMessages(prev => [...prev, botMessage]);
+          return;
+        } catch (agentErr) {
+          console.warn("Agent orchestrator chat fallback:", agentErr);
+        }
+      }
+
       const history = messages
         .filter((m, i) => !(i === 0 && m.role === 'model'))
         .map(m => ({
@@ -370,6 +401,14 @@ export const Chat: React.FC<ChatProps> = ({ onBack, language, onToggleLanguage }
             </p>
           </div>
         </div>
+        <button 
+          onClick={() => setIsLiveAudioOpen(true)}
+          className="p-2 mr-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition flex items-center justify-center gap-1 text-xs font-bold border border-emerald-400/30"
+          title="Start Live Voice API Conversation (gemini-3.1-flash-live-preview)"
+        >
+          <Radio size={18} className="animate-pulse text-emerald-400" />
+          <span className="hidden sm:inline">Live Voice</span>
+        </button>
         <button onClick={() => onToggleLanguage()} className="p-2 mr-1 rounded-full hover:bg-primary transition flex items-center justify-center" aria-label="Toggle Language">
           <Globe size={24} />
         </button>
@@ -418,6 +457,11 @@ export const Chat: React.FC<ChatProps> = ({ onBack, language, onToggleLanguage }
                   </p>
                 )}
                 <p className="text-base leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                {msg.agentResult && (
+                  <div className="mt-3">
+                    <AgentStepsDisplay result={msg.agentResult} />
+                  </div>
+                )}
                 {msg.role === 'model' && (
                   <button 
                     onClick={() => handlePlayAudio(msg.text, i)}
@@ -496,6 +540,16 @@ export const Chat: React.FC<ChatProps> = ({ onBack, language, onToggleLanguage }
           <p className="text-[10px] text-gray-400">AgroCare AI can make mistakes. Consult an expert for critical issues.</p>
         </div>
       </footer>
+
+      {/* Live Audio Chat Modal (gemini-3.1-flash-live-preview) */}
+      <AnimatePresence>
+        {isLiveAudioOpen && (
+          <LiveAudioChat 
+            diagnosis={null} 
+            onClose={() => setIsLiveAudioOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

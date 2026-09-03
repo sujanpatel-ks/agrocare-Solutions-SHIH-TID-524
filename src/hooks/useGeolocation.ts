@@ -1,121 +1,90 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-interface LocationState {
+const KARNATAKA_CENTROID = {
+  latitude: 15.3173,
+  longitude: 75.7139
+};
+
+export interface GeolocationResult {
   latitude: number | null;
   longitude: number | null;
-  error: string | null;
+  accuracy: number | null;
   loading: boolean;
+  error: string | null;
+  isFallback: boolean;
+  refetch: () => void;
+  requestLocation: () => void;
 }
 
-// Calculate distance between two coordinates in meters
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+export function useGeolocation(): GeolocationResult {
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState<boolean>(false);
 
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const fetchLocation = useCallback(() => {
+    setLoading(true);
+    setError(null);
 
-  return R * c;
-}
-
-export function useGeolocation(thresholdMeters: number = 5) {
-  const [location, setLocation] = useState<LocationState>({
-    latitude: null,
-    longitude: null,
-    error: null,
-    loading: false, // Default not loading until explicitly requested
-  });
-  const lastLocationRef = useRef<{ latitude: number; longitude: number; accuracy: number } | null>(null);
-
-  const requestLocation = useCallback(() => {
-    setLocation(prev => ({ ...prev, loading: true, error: null }));
-
-    if (!navigator.geolocation) {
-      setLocation((prev) => ({
-        ...prev,
-        error: 'Geolocation is not supported by your browser.',
-        loading: false,
-      }));
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      setLatitude(KARNATAKA_CENTROID.latitude);
+      setLongitude(KARNATAKA_CENTROID.longitude);
+      setIsFallback(true);
+      setLoading(false);
       return;
     }
 
-    // Fallback timeout in case getCurrentPosition hangs indefinitely
-    const fallbackTimeoutId = setTimeout(() => {
-      setLocation((prev) => {
-        if (prev.loading) {
-          return {
-            ...prev,
-            error: 'Location request timed out or was blocked.',
-            loading: false,
-          };
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude: lat, longitude: lng, accuracy: acc } = position.coords;
+        setLatitude(lat);
+        setLongitude(lng);
+        setAccuracy(acc || 0);
+        setError(null);
+        setIsFallback(false);
+        setLoading(false);
+      },
+      (err) => {
+        let message = 'Unable to retrieve your location.';
+        if (err.code === 1) {
+          message = 'Location permission was denied. Please allow location access in your browser settings.';
+        } else if (err.code === 2) {
+          message = 'Location position unavailable. GPS signal could not be acquired.';
+        } else if (err.code === 3) {
+          message = 'GPS request timed out. Retrying or using fallback.';
         }
-        return prev;
-      });
-    }, 6000);
-
-    const handleSuccess = (position: GeolocationPosition) => {
-      clearTimeout(fallbackTimeoutId);
-      const { latitude, longitude, accuracy } = position.coords;
-      
-      const isMoreAccurate = lastLocationRef.current && accuracy < lastLocationRef.current.accuracy;
-      
-      const distance = lastLocationRef.current 
-        ? getDistance(lastLocationRef.current.latitude, lastLocationRef.current.longitude, latitude, longitude)
-        : Infinity;
-
-      if (
-        !lastLocationRef.current ||
-        isMoreAccurate ||
-        distance > thresholdMeters
-      ) {
-        lastLocationRef.current = { latitude, longitude, accuracy };
-        setLocation({
-          latitude,
-          longitude,
-          error: null,
-          loading: false,
-        });
-      } else {
-        setLocation(prev => ({ ...prev, loading: false }));
+        
+        console.warn('GPS Geolocation error:', message, err);
+        setError(message);
+        setLatitude(KARNATAKA_CENTROID.latitude);
+        setLongitude(KARNATAKA_CENTROID.longitude);
+        setAccuracy(null);
+        setIsFallback(true);
+        setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 0
       }
-    };
-
-    const handleError = (error: GeolocationPositionError) => {
-      clearTimeout(fallbackTimeoutId);
-      let errorMessage = error.message || 'An unknown error occurred.';
-      switch (error.code) {
-        case 1: // PERMISSION_DENIED
-          errorMessage = 'Location access denied. Please enable location permissions in your browser.';
-          break;
-        case 2: // POSITION_UNAVAILABLE
-          errorMessage = 'Location information is unavailable based on current network or GPS.';
-          break;
-        case 3: // TIMEOUT
-          errorMessage = 'The request to get user location timed out. Please try again.';
-          break;
-      }
-      setLocation((prev) => ({
-        ...prev,
-        error: errorMessage,
-        loading: false,
-      }));
-    };
-
-    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-      enableHighAccuracy: false, // In iframes/preview environments, high accuracy often times out
-      maximumAge: 10000, // Accept cached precision 
-      timeout: 10000, 
-    });
-  }, [thresholdMeters]);
+    );
+  }, []);
 
   useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
+    fetchLocation();
+  }, [fetchLocation]);
 
-  return { ...location, requestLocation };
+  return {
+    latitude,
+    longitude,
+    accuracy,
+    loading,
+    error,
+    isFallback,
+    refetch: fetchLocation,
+    requestLocation: fetchLocation
+  };
 }

@@ -66,6 +66,7 @@ export const SUPPLIERS: Supplier[] = [
     tags: ['Mancozeb', 'Recommended'],
     verified: true,
     phone: '+919876543210',
+    website: 'https://agroinputsolutions.in',
     address: 'Near Old Bus Stand, Market Road',
   },
   {
@@ -78,6 +79,7 @@ export const SUPPLIERS: Supplier[] = [
     tags: ['General Seeds', 'Tools'],
     verified: false,
     phone: '+919876543211',
+    website: 'https://kisansevakendra.org',
     address: 'Main Gate, APMC Yard',
   },
   {
@@ -90,6 +92,7 @@ export const SUPPLIERS: Supplier[] = [
     tags: ['Organic'],
     verified: false,
     phone: '+919876543212',
+    website: 'https://villageorganichub.in',
     address: 'Shop No. 4, Gram Panchayat Road',
   },
 ];

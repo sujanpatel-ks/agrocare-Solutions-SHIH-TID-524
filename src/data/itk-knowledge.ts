@@ -70,3 +70,57 @@ Extended ICAR ITK Inventory (Indigenous Technical Knowledge):
 - Sound shield / Sari fencing / Tyre smoke: Deter monkeys, wild boars, and stray animals.
 - Indigenous rain gauge (Rolu): Measures rainfall depth for optimizing sowing times.
 `;
+
+export interface ITKMatch {
+  practice: string;
+  description: string;
+  category?: string;
+}
+
+export function getItkMatches(crop?: string, problem?: string): ITKMatch[] {
+  const query = `${crop || ''} ${problem || ''}`.toLowerCase().trim();
+  const lines = ITK_KNOWLEDGE.split('\n').filter(line => line.trim().startsWith('-'));
+  
+  const matches: ITKMatch[] = [];
+  
+  for (const line of lines) {
+    const cleanLine = line.replace(/^- \s*/, '').trim();
+    const parts = cleanLine.split(':');
+    const practice = parts[0]?.trim() || 'Traditional Practice';
+    const description = parts.slice(1).join(':').trim() || cleanLine;
+    
+    if (!query) {
+      matches.push({ practice, description });
+      continue;
+    }
+
+    const queryTokens = query.split(/\s+/).filter(Boolean);
+    const lineLower = cleanLine.toLowerCase();
+    const hasMatch = queryTokens.some(token => lineLower.includes(token));
+    
+    if (hasMatch) {
+      matches.push({ practice, description });
+    }
+  }
+
+  if (matches.length === 0) {
+    // Default fallback popular remedies
+    return [
+      {
+        practice: 'Neemastra & Dusparni Ark',
+        description: 'Fermented botanical biopesticide with cow urine and neem leaves effective against chewing and sucking insects.'
+      },
+      {
+        practice: 'Wood ash dusting',
+        description: 'Sprinkled on crop leaves in the morning to deter aphids, caterpillars, and fungal spores.'
+      },
+      {
+        practice: 'Sour Buttermilk (Chass) spray',
+        description: 'Diluted 1:10 with water and sprayed every 7-10 days as a broad-spectrum organic bio-fungicide.'
+      }
+    ];
+  }
+
+  return matches.slice(0, 5);
+}
+
