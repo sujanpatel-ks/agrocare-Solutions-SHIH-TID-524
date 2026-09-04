@@ -871,6 +871,45 @@ VITE_GOOGLE_PLACES_API_KEY=your_google_places_api_key
 npm run dev
 ```
 
+## Web, Mobile & Tablet Support
+
+AgroCare AI is a responsive, touch-first application designed for three usage surfaces:
+
+* **Web / PWA:** Run the responsive web application in a modern desktop or mobile browser. The PWA layout, offline messaging and touch controls are intended for field use on smaller screens.
+* **Android phone and tablet:** Use the Expo Go companion during development and judging. Expo Go provides the device runtime while the web application and API remain served from the development laptop over the local network.
+* **Production mobile delivery:** Use an Expo-compatible development build or EAS Build when native capabilities beyond Expo Go are required. Expo Go is the correct lightweight choice for development previews; it is not a production app store package.
+
+### Run the phone / tablet preview with Expo Go
+
+Start the web application and API from the project root:
+
+```bash
+npm run dev
+```
+
+Then start the Expo Go companion from its `mobile` directory (when included with the deployment package):
+
+```bash
+cd mobile
+npx expo start --clear --lan
+```
+
+Scan the QR code with **Expo Go** on the Android phone or tablet. The device and laptop must be connected to the same Wi-Fi network. Configure the companion with the laptop's LAN URL, for example:
+
+```env
+EXPO_PUBLIC_WEB_APP_URL=http://192.168.1.25:5173/
+```
+
+Replace `192.168.1.25` with the laptop address shown by the development server. Never use `localhost` or `127.0.0.1` in the phone's web-app URL because those addresses point back to the phone itself.
+
+If LAN discovery is blocked by the network, Metro can be started with:
+
+```bash
+npx expo start --tunnel
+```
+
+The Expo Go preview preserves the existing AgroCare navigation and responsive web experience. Camera, location and other device permissions must be granted on the phone or tablet when prompted.
+
 ## Production Build
 
 ```bash
