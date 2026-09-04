@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Clock, AlertTriangle, ChevronRight, Award, Trash2, Loader2, Calendar, FileDown, Sprout, Search, Inbox, AlertOctagon, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../AuthProvider';
-import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { Language } from '../types';
 import { toast } from 'sonner';
+import { getAuthHeaders } from '../firebase';
 
 interface HistoryProps {
   language: Language;
@@ -69,13 +68,12 @@ export const History: React.FC<HistoryProps> = ({ language, onSelectScan, onNavi
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const path = `users/${user.uid}/diagnoses`;
-        const q = query(collection(db, path), orderBy('timestamp', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setScans(data);
+        const response = await fetch('/api/diagnoses', { headers: await getAuthHeaders() });
+        if (!response.ok) throw new Error(`Diagnosis history request failed: ${response.status}`);
+        const payload = await response.json();
+        setScans(Array.isArray(payload.data) ? payload.data : []);
       } catch (error) {
-        console.error("Failed to fetch diagnoses history:", error);
+        console.warn("Failed to fetch diagnoses history:", error);
       } finally {
         setLoading(false);
       }
@@ -87,8 +85,11 @@ export const History: React.FC<HistoryProps> = ({ language, onSelectScan, onNavi
     e.stopPropagation(); // Prevent card select trigger
     if (!user) return;
     try {
-      const docRef = doc(db, `users/${user.uid}/diagnoses`, id);
-      await deleteDoc(docRef);
+      const response = await fetch(`/api/diagnoses/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
       setScans(prev => prev.filter(scan => scan.id !== id));
       toast.success(t.deleteSuccess);
     } catch (error) {

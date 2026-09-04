@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import * as admin from "firebase-admin";
+import { getApps } from "firebase-admin/app";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -10,7 +11,7 @@ import { WebSocketServer } from "ws";
 import url from "url";
 import { ITK_KNOWLEDGE } from "./src/data/itk-knowledge";
 import { runOrchestrator } from "./server/agent/agentOrchestrator";
-import { validateAgentInput, verifyAuthToken } from "./server/agent/validators";
+import { validateAgentInput, requireAuthToken } from "./server/agent/validators";
 import { log as agentLog } from "./server/agent/agentLogger";
 import { runAgent } from "./server/agent/agentHarness";
 import { buildAgroCareContext } from "./server/agent/context";
@@ -53,6 +54,12 @@ try {
     });
     db = admin.firestore();
     console.log("Firebase Admin initialized successfully.");
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
+    });
+    db = admin.firestore();
+    console.log("Firebase Admin initialized from environment.");
   } else {
     console.warn("service-account.json not found. Firebase Admin is not initialized.");
   }
@@ -67,6 +74,58 @@ async function startServer() {
   // Increase payload limit for base64 image uploads
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+  const rateLimit = (windowMs: number, max: number) => {
+    const buckets = new Map<string, { count: number; resetAt: number }>();
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const now = Date.now();
+      const key = req.ip || req.socket.remoteAddress || 'unknown';
+      const current = buckets.get(key);
+      if (!current || current.resetAt <= now) {
+        buckets.set(key, { count: 1, resetAt: now + windowMs });
+        return next();
+      }
+      current.count += 1;
+      if (current.count > max) {
+        res.setHeader('Retry-After', Math.ceil((current.resetAt - now) / 1000));
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+      }
+      return next();
+    };
+  };
+  const diagnosisRateLimit = rateLimit(60_000, 20);
+  const demoRateLimit = rateLimit(60 * 60_000, 5);
+
+  const authenticateRequest = async (req: express.Request, res: express.Response) => {
+    // Development-only fallback for the public hackathon demo identity.
+    if (process.env.NODE_ENV !== 'production' && req.headers['x-demo-user'] === 'demo-user-001') {
+      return { uid: 'demo-user-001', email: 'demo@agrocare.ai' };
+    }
+    try {
+      return await requireAuthToken(req.headers.authorization);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'AUTH_INVALID';
+      const status = code === 'AUTH_UNAVAILABLE' ? 503 : 401;
+      res.status(status).json({ error: status === 503 ? 'Authentication service unavailable.' : 'Authentication required.' });
+      return null;
+    }
+  };
+
+  app.post('/api/demo-session', demoRateLimit, async (_req, res) => {
+    if (getApps().length > 0) {
+      try {
+        const token = await admin.auth().createCustomToken('demo-user-001', {
+          role: 'demo', name: 'Demo User', email: 'demo@agrocare.ai'
+        });
+        return res.json({ token, uid: 'demo-user-001' });
+      } catch (error) {
+        console.error('Failed to create demo session:', error);
+        return res.status(503).json({ error: 'Demo session unavailable.' });
+      }
+    }
+    if (process.env.NODE_ENV !== 'production') return res.json({ uid: 'demo-user-001', demoMode: true });
+    return res.status(503).json({ error: 'Demo session unavailable.' });
+  });
 
   const server = createServer(app);
   const wss = new WebSocketServer({ noServer: true });
@@ -360,17 +419,14 @@ ${ITK_KNOWLEDGE}
   // --- AGROCARE P0 AGENT HARNESS & ORCHESTRATION LAYER ---
   app.post("/api/agrocare/agent", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const authResult = await verifyAuthToken(authHeader);
-      
+      const authUser = await authenticateRequest(req, res);
+      if (!authUser) return;
       const body = req.body || {};
       const userMessage = body.message || body.text || body.query || body.symptoms || "Agricultural advisory for my crop";
       
       // Build unified AgroCare Context
       const context = await buildAgroCareContext(req);
-      if (authResult.uid) {
-        context.userId = authResult.uid;
-      }
+      context.userId = authUser.uid;
 
       agentLog(`[AGENT API] Running P0 Agent Harness for farmer: ${context.userId}`);
       const result = await runAgent(userMessage, context);
@@ -610,15 +666,30 @@ CRITICAL INSTRUCTIONS:
     });
   });
 
-  app.post("/api/gemini/diagnose", async (req, res) => {
+  app.post("/api/gemini/diagnose", diagnosisRateLimit, async (req, res) => {
+    if (!await authenticateRequest(req, res)) return;
     const { imageBase64, crop, region, growthStage, weather, soilType } = req.body || {};
     try {
       if (!imageBase64) return res.status(400).json({ error: "Image is required" });
+      if (typeof imageBase64 !== 'string' || imageBase64.length > 8_000_000) {
+        return res.status(413).json({ error: "Image payload is too large" });
+      }
 
       const ai = getGeminiClient();
       const mimeMatch = imageBase64.match(/^data:([^;]+);base64,/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType.toLowerCase())) {
+        return res.status(415).json({ error: "Only JPEG, PNG, and WebP images are supported" });
+      }
       const cleanData = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cleanData)) {
+        return res.status(400).json({ error: "Invalid image encoding" });
+      }
+      const imageBytes = Buffer.from(cleanData, 'base64');
+      const isJpeg = imageBytes[0] === 0xff && imageBytes[1] === 0xd8 && imageBytes[2] === 0xff;
+      const isPng = imageBytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      const isWebp = imageBytes.subarray(0, 4).toString('ascii') === 'RIFF' && imageBytes.subarray(8, 12).toString('ascii') === 'WEBP';
+      if (!isJpeg && !isPng && !isWebp) return res.status(415).json({ error: "Invalid or unsupported image file" });
 
       const diagnosisPrompt = buildStructuredGeminiPrompt({
         crop,
@@ -2152,21 +2223,29 @@ Please output a JSON response matching this schema:
   // Example: Save a diagnosis result
   app.post("/api/diagnoses", async (req, res) => {
     try {
-      const data = req.body;
+      const authUser = await authenticateRequest(req, res);
+      if (!authUser) return;
+      const data = req.body || {};
+      if (typeof data.crop !== 'string' || !data.crop.trim() || typeof data.disease !== 'string' || !data.disease.trim() ||
+          typeof data.confidence !== 'number' || data.confidence < 0 || data.confidence > 100 ||
+          !['Low', 'Medium', 'High'].includes(data.severity)) {
+        return res.status(400).json({ error: 'Invalid diagnosis payload.' });
+      }
+      const diagnosis = {
+        ...data,
+        userId: authUser.uid,
+        timestamp: new Date().toISOString(),
+      };
       if (!db) {
         console.warn("[MOCK DB fallback] Firebase not initialized. Saving diagnosis in-memory.");
         const newMockDoc = {
           id: `mock_diag_${Date.now()}`,
-          ...data,
-          timestamp: new Date().toISOString()
+          ...diagnosis,
         };
         mockDiagnoses.unshift(newMockDoc);
         return res.json({ success: true, id: newMockDoc.id, isMocked: true });
       }
-      const docRef = await db.collection("diagnoses").add({
-        ...data,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
-      });
+      const docRef = await db.collection("users").doc(authUser.uid).collection("diagnoses").add(diagnosis);
       res.json({ success: true, id: docRef.id });
     } catch (error: any) {
       console.error("Error saving diagnosis:", error);
@@ -2177,16 +2256,41 @@ Please output a JSON response matching this schema:
   // Example: Get diagnosis history
   app.get("/api/diagnoses", async (req, res) => {
     try {
+      const authUser = await authenticateRequest(req, res);
+      if (!authUser) return;
       if (!db) {
         console.warn("[MOCK DB fallback] Firebase not initialized. Fetching diagnoses from in-memory store.");
-        return res.json({ success: true, data: mockDiagnoses, isMocked: true });
+        return res.json({ success: true, data: mockDiagnoses.filter(diagnosis => diagnosis.userId === authUser.uid), isMocked: true });
       }
-      const snapshot = await db.collection("diagnoses").orderBy("timestamp", "desc").limit(20).get();
+      const snapshot = await db.collection("users").doc(authUser.uid).collection("diagnoses").orderBy("timestamp", "desc").limit(20).get();
       const diagnoses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json({ success: true, data: diagnoses });
     } catch (error: any) {
       console.error("Error fetching diagnoses:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/diagnoses/:diagnosisId", async (req, res) => {
+    try {
+      const authUser = await authenticateRequest(req, res);
+      if (!authUser) return;
+      const diagnosisId = req.params.diagnosisId;
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(diagnosisId)) return res.status(400).json({ error: 'Invalid diagnosis ID.' });
+      if (!db) {
+        const index = mockDiagnoses.findIndex(diagnosis => diagnosis.id === diagnosisId && diagnosis.userId === authUser.uid);
+        if (index < 0) return res.status(404).json({ error: 'Diagnosis not found.' });
+        mockDiagnoses.splice(index, 1);
+        return res.json({ success: true });
+      }
+      const ref = db.collection("users").doc(authUser.uid).collection("diagnoses").doc(diagnosisId);
+      const snapshot = await ref.get();
+      if (!snapshot.exists) return res.status(404).json({ error: 'Diagnosis not found.' });
+      await ref.delete();
+      return res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting diagnosis:", error);
+      return res.status(500).json({ error: 'Failed to delete diagnosis.' });
     }
   });
 
@@ -2267,22 +2371,30 @@ Please output a JSON response matching this schema:
   app.post("/api/agrocare/decision", handleAgrocareDecision);
 
   // Demo Request Endpoint
-  app.post("/api/demo-request", (req, res) => {
+  app.post("/api/demo-request", demoRateLimit, (req, res) => {
     const { name, phone, email, farmSize, crop, location } = req.body || {};
-    if (!name || (!phone && !email)) {
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+    const normalizedPhone = typeof phone === 'string' ? phone.replace(/[\s-]/g, '') : '';
+    const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+    const normalizedCrop = typeof crop === 'string' ? crop.trim() : '';
+    const validIndianPhone = /^\+?91?[6-9]\d{9}$/.test(normalizedPhone);
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+
+    if (normalizedName.length < 2 || (!normalizedPhone && !normalizedEmail) ||
+        (normalizedPhone && !validIndianPhone) || (normalizedEmail && !validEmail) || !normalizedCrop) {
       return res.status(400).json({
         success: false,
-        error: "Validation failed: 'name' and at least one contact method ('phone' or 'email') are required."
+        error: "Validation failed: name (min 2 chars), a valid phone or email, and crop are required."
       });
     }
     const demoId = `DEMO-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    console.log(`[DemoRequest] Received demo booking for ${name} (${phone || email}), farm size: ${farmSize || 'Not specified'}`);
+    console.log(`[DemoRequest] Received demo booking for ${normalizedName}, farm size: ${farmSize || 'Not specified'}`);
     return res.status(201).json({
       success: true,
       demoId,
-      message: `Demo request successfully registered for ${name}. Our agronomy advisor will contact you within 24 hours.`,
+      message: `Demo request successfully registered for ${normalizedName}. Our agronomy advisor will contact you within 24 hours.`,
       receivedAt: new Date().toISOString(),
-      details: { name, phone: phone || null, email: email || null, farmSize: farmSize || 'Not specified', crop: crop || 'General', location: location || 'Karnataka' }
+      details: { name: normalizedName, phone: normalizedPhone || null, email: normalizedEmail || null, farmSize: farmSize || 'Not specified', crop: normalizedCrop, location: location || 'Karnataka' }
     });
   });
 
@@ -2351,7 +2463,8 @@ Please output a JSON response matching this schema:
       canopyTemperature: "27.4°C",
       leafWetnessIndex: "0.15",
       ambientLux: "62,000 lux",
-      batteryLevel: "98%"
+      batteryLevel: "98%",
+      recordedAt: new Date().toISOString()
     });
   });
 

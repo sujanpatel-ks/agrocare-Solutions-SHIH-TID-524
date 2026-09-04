@@ -343,7 +343,7 @@ export const TreatmentRechartsComparison: React.FC<TreatmentRechartsComparisonPr
 
       {/* Recharts Bar Chart Area */}
       <div className="w-full h-64 sm:h-72 bg-white rounded-xl p-2 sm:p-4 border border-gray-200/70 shadow-inner">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
           <BarChart
             data={currentData}
             margin={{ top: 20, right: 20, left: 0, bottom: 25 }}

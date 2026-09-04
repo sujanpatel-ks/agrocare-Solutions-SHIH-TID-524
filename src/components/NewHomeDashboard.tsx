@@ -41,6 +41,7 @@ import { WeatherSummary } from './WeatherSummary';
 import { TaskSpeechReminder } from './TaskSpeechReminder';
 import { LanguageSelector } from './LanguageSelector';
 import { TestimonialsCarousel } from './TestimonialsCarousel';
+import { SensorTelemetryCard } from './SensorTelemetryCard';
 
 interface NewHomeDashboardProps {
   onNavigate: (screen: Screen) => void;
@@ -381,6 +382,7 @@ export const NewHomeDashboard: React.FC<NewHomeDashboardProps> = ({
           onRefresh={onRefreshWeather}
           loading={weatherLoading}
         />
+        <SensorTelemetryCard language={language} />
 
         {/* 2. TOP AI CROP SCANNER & CAMERA TRIGGER CARD */}
         <section 

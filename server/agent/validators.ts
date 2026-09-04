@@ -58,25 +58,14 @@ export function validateAgentInput(data: any): { valid: boolean; error?: string;
   return { valid: true, cleanData };
 }
 
-export async function verifyAuthToken(authHeader?: string): Promise<{ uid?: string; email?: string; isAnonymous?: boolean }> {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // In development or local preview mode, allow standard guest farmer session
-    return { uid: 'guest_farmer_' + Math.random().toString(36).substring(2, 9), isAnonymous: true };
-  }
-
-  const token = authHeader.split('Bearer ')[1]?.trim();
-  if (!token) {
-    return { uid: 'guest_farmer_anon', isAnonymous: true };
-  }
-
+export async function requireAuthToken(authHeader?: string): Promise<{ uid: string; email?: string }> {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('AUTH_REQUIRED');
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token || admin.apps.length === 0) throw new Error('AUTH_UNAVAILABLE');
   try {
-    if (admin.apps.length > 0) {
-      const decoded = await admin.auth().verifyIdToken(token);
-      return { uid: decoded.uid, email: decoded.email, isAnonymous: false };
-    }
-  } catch (err) {
-    console.warn('[AUTH GUARD] Token verification skipped or failed:', err);
+    const decoded = await admin.auth().verifyIdToken(token);
+    return { uid: decoded.uid, email: decoded.email };
+  } catch {
+    throw new Error('AUTH_INVALID');
   }
-
-  return { uid: 'authenticated_farmer', isAnonymous: false };
 }

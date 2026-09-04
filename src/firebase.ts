@@ -1,27 +1,34 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 // @ts-ignore
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-
-// Enable offline persistence for seamless zero-connectivity failover
-enableMultiTabIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Firestore offline persistence: multiple tabs open. Enabled in one tab.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('Firestore offline persistence: browser unimplemented.');
-  } else {
-    console.warn('Firestore offline persistence error:', err);
-  }
-});
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+}, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth();
 export const googleProvider = new GoogleAuthProvider();
+
+export const DEMO_UID = 'demo-user-001';
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  // Prefer the Firebase token when the demo session was issued by the backend.
+  // The fixed header is only a development fallback when Firebase Admin is not configured.
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (token) return { Authorization: `Bearer ${token}` };
+  } catch {
+    // Fall through to the explicitly fixed development-only demo identity.
+  }
+  return localStorage.getItem('agrocare_demo_mode') === 'true'
+    ? { 'X-Demo-User': DEMO_UID }
+    : {};
+}
 
 export enum OperationType {
   CREATE = 'create',

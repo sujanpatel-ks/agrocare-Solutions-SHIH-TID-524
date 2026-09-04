@@ -37,6 +37,15 @@
   --color-soil: #f8f9fa;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer base {
   body {
     @apply bg-slate-200 text-gray-900 font-sans antialiased;

@@ -1,5 +1,5 @@
 // src/services/agentService.ts — Client-side service to communicate with AgroCare Agent
-import { auth } from '../firebase';
+import { getAuthHeaders } from '../firebase';
 
 export interface AgentAction {
   step: number;
@@ -76,22 +76,10 @@ export interface AgentRequestParams {
 }
 
 export async function runAgentOrchestrator(params: AgentRequestParams): Promise<AgentResult> {
-  let idToken = '';
-  if (auth.currentUser) {
-    try {
-      idToken = await auth.currentUser.getIdToken();
-    } catch (e) {
-      console.warn('Could not retrieve Firebase ID token:', e);
-    }
-  }
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(await getAuthHeaders()),
   };
-
-  if (idToken) {
-    headers['Authorization'] = `Bearer ${idToken}`;
-  }
 
   const response = await fetch('/api/agrocare/agent', {
     method: 'POST',

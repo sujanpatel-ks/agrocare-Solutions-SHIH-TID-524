@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Screen, Task, CropPrice, Language } from './types';
 import { Dashboard } from './components/Dashboard';
-import { Market } from './components/Market';
-import { CropDetails } from './components/CropDetails';
-import { Suppliers } from './components/Suppliers';
-import { Community } from './components/Community';
-import { Calendar } from './components/Calendar';
-import { Diagnosis } from './components/Diagnosis';
-import { Chat } from './components/Chat';
-import { Profile } from './components/Profile';
-import { SchemeFinder } from './components/SchemeFinder';
-import { SoilAnalysis } from './components/SoilAnalysis';
-import { History } from './components/History';
+const Market = lazy(() => import('./components/Market').then(module => ({ default: module.Market })));
+const CropDetails = lazy(() => import('./components/CropDetails').then(module => ({ default: module.CropDetails })));
+const Suppliers = lazy(() => import('./components/Suppliers').then(module => ({ default: module.Suppliers })));
+const Community = lazy(() => import('./components/Community').then(module => ({ default: module.Community })));
+const Calendar = lazy(() => import('./components/Calendar').then(module => ({ default: module.Calendar })));
+const Diagnosis = lazy(() => import('./components/Diagnosis').then(module => ({ default: module.Diagnosis })));
+const Chat = lazy(() => import('./components/Chat').then(module => ({ default: module.Chat })));
+const Profile = lazy(() => import('./components/Profile').then(module => ({ default: module.Profile })));
+const SchemeFinder = lazy(() => import('./components/SchemeFinder').then(module => ({ default: module.SchemeFinder })));
+const SoilAnalysis = lazy(() => import('./components/SoilAnalysis').then(module => ({ default: module.SoilAnalysis })));
+const History = lazy(() => import('./components/History').then(module => ({ default: module.History })));
 import { BottomNav } from './components/BottomNav';
-import { AndroidWorkspace } from './components/AndroidWorkspace';
-import { GoogleMapsAgent } from './components/GoogleMapsAgent';
+const AndroidWorkspace = lazy(() => import('./components/AndroidWorkspace').then(module => ({ default: module.AndroidWorkspace })));
+const GoogleMapsAgent = lazy(() => import('./components/GoogleMapsAgent').then(module => ({ default: module.GoogleMapsAgent })));
 import { DiagnosisResult, diagnoseCrop } from './services/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Camera, Sprout } from 'lucide-react';
@@ -26,13 +26,12 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from './components/LanguageSelector';
 import { useAuth } from './AuthProvider';
 import { VoiceNavigation } from './components/VoiceNavigation';
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from './firebase';
 import { OfflineBanner } from './components/OfflineBanner';
 import { saveDiagnosisOffline, getLatestDiagnosisOffline } from './utils/offlineStorage';
+import { getAuthHeaders } from './firebase';
 
 export default function App() {
-  const { user, loading, isAuthenticating, signIn } = useAuth();
+  const { user, loading, isAuthenticating, isDemoUser, signIn, demoLogin } = useAuth();
   const { i18n } = useTranslation();
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
@@ -79,19 +78,19 @@ export default function App() {
       }
     }
 
-    // Fetch latest scan from firestore as single source of truth
+    // Fetch latest scan from the authenticated, UID-scoped API.
     const fetchLatest = async () => {
       try {
-        const path = `users/${user.uid}/diagnoses`;
-        const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const docData = snap.docs[0].data();
+        const response = await fetch('/api/diagnoses', { headers: await getAuthHeaders() });
+        if (!response.ok) throw new Error(`Diagnosis history request failed: ${response.status}`);
+        const payload = await response.json();
+        if (payload.data?.length) {
+          const docData = payload.data[0];
           setLastDiagnosis(docData);
           localStorage.setItem('agrocare_latest_diagnosis', JSON.stringify(docData));
         }
       } catch (error) {
-        console.error("Failed to fetch latest scan for home card:", error);
+        console.warn("Unable to refresh latest scan from server; using local cache:", error);
       }
     };
     fetchLatest();
@@ -155,6 +154,15 @@ export default function App() {
           )}
           {isAuthenticating ? 'Signing in...' : 'Sign in with Google'}
         </button>
+        <button
+          onClick={demoLogin}
+          disabled={isAuthenticating}
+          className="mt-3 border border-[#2D6A4F] text-[#2D6A4F] font-black py-3 px-8 rounded-2xl hover:bg-emerald-50 transition disabled:opacity-60"
+          style={{ minHeight: '48px' }}
+        >
+          {isAuthenticating ? 'Entering demo mode…' : '🚀 Demo User Login'}
+        </button>
+        <p className="text-xs text-gray-500 mt-2 max-w-xs">Explore the application instantly with a pre-configured demo account.</p>
       </div>
     );
   }
@@ -185,7 +193,7 @@ export default function App() {
       // Save to backend
       fetch('/api/diagnoses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify(result)
       }).catch(err => console.error("Failed to save diagnosis to backend:", err));
     } catch (error) {
@@ -267,7 +275,7 @@ export default function App() {
           // Save to backend
           fetch('/api/diagnoses', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify(result)
           }).catch(err => console.error("Failed to save diagnosis to backend:", err));
         } catch (error) {
@@ -473,12 +481,14 @@ export default function App() {
 
   return (
     <div className="w-full mx-auto bg-white min-h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.05)] overflow-x-hidden md:pl-24">
+      {isDemoUser && <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-[11px] font-black text-amber-900 shadow-sm">Demo Mode</div>}
       {/* Offline Service Worker Persistent Status Banner */}
       <OfflineBanner 
         language={language} 
         onOpenOfflineLibrary={() => setActiveScreen('diagnosis')} 
       />
       
+      <Suspense fallback={<div className="min-h-[70dvh] flex items-center justify-center text-sm text-gray-500">Loading AgroCare module…</div>}>
       <AnimatePresence mode="wait">
         <motion.div
           key={activeScreen + (isDiagnosing ? '-loading' : '')}
@@ -491,6 +501,7 @@ export default function App() {
           {renderScreen()}
         </motion.div>
       </AnimatePresence>
+      </Suspense>
       
       {isTabScreen && !isDiagnosing && (
         <BottomNav 

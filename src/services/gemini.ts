@@ -1,4 +1,5 @@
 import { ConfidenceAssessment } from '../lib/confidenceHandler';
+import { getAuthHeaders } from '../firebase';
 export type { ConfidenceAssessment };
 
 export interface WhereToFetchInfo {
@@ -152,9 +153,11 @@ export interface DiagnoseCropOptions {
 
 export async function diagnoseCrop(imageBase64: string, options?: DiagnoseCropOptions): Promise<DiagnosisResult> {
   const compressedBase64 = await compressImage(imageBase64);
+  const authHeaders = await getAuthHeaders();
+  if (!Object.keys(authHeaders).length) throw new Error('Authentication is required for crop diagnosis.');
   const response = await fetch("/api/gemini/diagnose", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       imageBase64: compressedBase64,
       crop: options?.crop,
@@ -383,4 +386,3 @@ export async function callAgent(
 
   return response.json();
 }
-

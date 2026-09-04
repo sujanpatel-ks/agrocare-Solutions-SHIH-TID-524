@@ -458,7 +458,7 @@ export const Market: React.FC<MarketProps> = ({ onBack, onSelectCrop, language }
 
                       {/* Mini Sparkline in Watchlist */}
                       <div className="h-8 w-full mt-2 bg-slate-50/70 rounded-xl p-1 border border-slate-100 overflow-hidden">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                           <AreaChart data={getMockHistoricalData(crop.price, crop.trend)}>
                             <defs>
                               <linearGradient id={`wl-grad-${crop.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -619,7 +619,7 @@ export const Market: React.FC<MarketProps> = ({ onBack, onSelectCrop, language }
                     onClick={(e) => e.stopPropagation()}
                     className="h-12 w-32 sm:w-36 bg-gradient-to-b from-slate-50/90 to-slate-100/60 hover:from-slate-100/90 hover:to-slate-200/60 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs transition-all relative overflow-hidden shrink-0 group/sparkline"
                   >
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                       <AreaChart data={getMockHistoricalData(crop.price, crop.trend)} margin={{ top: 3, right: 2, left: 2, bottom: 0 }}>
                         <defs>
                           <linearGradient id={`colorPrice-${crop.id}`} x1="0" y1="0" x2="0" y2="1">

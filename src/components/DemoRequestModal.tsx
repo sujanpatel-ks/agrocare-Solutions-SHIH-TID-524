@@ -22,12 +22,25 @@ export const DemoRequestModal: React.FC<DemoRequestModalProps> = ({ isOpen, onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Please provide your name.');
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+    const trimmedCrop = crop.trim();
+
+    if (trimmedName.length < 2) {
+      toast.error('Please provide a name with at least 2 characters.');
       return;
     }
-    if (!phone.trim() && !email.trim()) {
+    if (trimmedPhone && !/^\+?91?[6-9]\d{9}$/.test(trimmedPhone.replace(/[\s-]/g, ''))) {
+      toast.error('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!trimmedPhone && !trimmedEmail) {
       toast.error('Please enter a phone number or email address for contact.');
+      return;
+    }
+    if (!trimmedCrop) {
+      toast.error('Please provide your primary crop.');
       return;
     }
 
@@ -37,11 +50,11 @@ export const DemoRequestModal: React.FC<DemoRequestModalProps> = ({ isOpen, onCl
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim() || undefined,
-          email: email.trim() || undefined,
+          name: trimmedName,
+          phone: trimmedPhone || undefined,
+          email: trimmedEmail || undefined,
           farmSize,
-          crop,
+          crop: trimmedCrop,
           location
         })
       });
@@ -143,10 +156,11 @@ export const DemoRequestModal: React.FC<DemoRequestModalProps> = ({ isOpen, onCl
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
-                    <Phone size={13} className="text-[#2D6A4F]" /> Mobile Number *
+                  <label htmlFor="demo-phone" className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
+                    <Phone size={13} className="text-[#2D6A4F]" /> Mobile Number
                   </label>
                   <input
+                    id="demo-phone"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -155,10 +169,11 @@ export const DemoRequestModal: React.FC<DemoRequestModalProps> = ({ isOpen, onCl
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
+                  <label htmlFor="demo-email" className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
                     <Mail size={13} className="text-[#2D6A4F]" /> Email Address
                   </label>
                   <input
+                    id="demo-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -170,11 +185,13 @@ export const DemoRequestModal: React.FC<DemoRequestModalProps> = ({ isOpen, onCl
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
+                  <label htmlFor="demo-crop" className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1.5">
                     <Sprout size={13} className="text-[#2D6A4F]" /> Primary Crop
                   </label>
                   <input
+                    id="demo-crop"
                     type="text"
+                    required
                     value={crop}
                     onChange={(e) => setCrop(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F]"
