@@ -934,7 +934,11 @@ npm run start
 
 ### 📊 Architecture
 
-**[Add architecture diagram image here]**
+The following diagram presents AgroCare AI's complete platform architecture, from farmer-facing interfaces through AI agents, orchestration, external services, data storage and IoT infrastructure.
+
+![AgroCare AI System Architecture](docs/architecture/agrocare-system-architecture.png)
+
+*Figure 1. AgroCare AI system architecture and data-flow overview.*
 
 ### 📸 Product Screenshots
 
