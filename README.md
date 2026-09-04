@@ -382,11 +382,6 @@ Using location intelligence, AgroCare can help discover nearby:
 * Other relevant agricultural businesses
 
 This reduces the gap between:
-
-**Recommendation → Procurement**
-
----
-
 ## 06 — 📚 ITK-First Agricultural Knowledge
 
 AgroCare incorporates Indigenous Technical Knowledge as a knowledge layer.
@@ -922,15 +917,12 @@ npm run start
 
 ---
 
-# 🎥 Demo
+
 
 ### 🌐 Live Application
 
-**[Add your final verified live deployment link here]**
+(http://localhost:8083)
 
-### 🎬 Demo Video
-
-**[Add 2–3 minute demo video here]**
 
 ### 📊 Architecture
 
@@ -1038,7 +1030,7 @@ AgroCare is a **decision-support system**, not a replacement for qualified agric
 
 ---
 
-# 🤝 Responsible Agricultural Intelligence
+#  Responsible Agricultural Intelligence
 
 AI should not blindly replace agricultural knowledge.
 
@@ -1108,11 +1100,11 @@ Building technology for practical agricultural decision support.
 
 📧 [spacecraftech1@gmail.com](mailto:spacecraftech1@gmail.com)
 
-💻 GitHub: [@spacecraftech1](https://github.com/spacecraftech1)
+💻 GitHub: [@sujanPatel](https://github.com/sujanpatel-ks)
 
 ---
 
-# 🙏 Acknowledgements
+# Acknowledgements
 
 We acknowledge the technologies and public resources that make this project possible, including:
 
@@ -1126,11 +1118,6 @@ We acknowledge the technologies and public resources that make this project poss
 
 ---
 
-# 📄 License
-
-This project is licensed under the MIT License.
-
-See [LICENSE](LICENSE) for details.
 
 ---
 
