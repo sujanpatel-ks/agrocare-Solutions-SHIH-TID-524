@@ -11,28 +11,88 @@ interface CameraDiagnosisProps {
 export const CameraDiagnosis: React.FC<CameraDiagnosisProps> = ({ onCapture, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [isActive, setIsActive] = useState(false);
+  const [isNativeCameraOpen, setIsNativeCameraOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
+    const handleNativeCameraMessage = (event: MessageEvent) => {
+      if (typeof event.data !== 'string') return;
+
+      try {
+        const message = JSON.parse(event.data);
+        if (message?.type === 'AGROCARE_NATIVE_CAMERA_RESULT' && typeof message.dataUrl === 'string') {
+          setFlash(true);
+          setTimeout(() => setFlash(false), 150);
+          setTimeout(() => onCapture(message.dataUrl), 200);
+          setIsNativeCameraOpen(false);
+        }
+
+        if (message?.type === 'AGROCARE_NATIVE_CAMERA_CANCELLED') {
+          setIsNativeCameraOpen(false);
+          setError('Camera was closed. Try again or upload a crop photo instead.');
+        }
+      } catch {
+        // Ignore messages that do not belong to the native camera bridge.
+      }
+    };
+
+    window.addEventListener('message', handleNativeCameraMessage);
+    document.addEventListener('message', handleNativeCameraMessage as EventListener);
     startCamera();
-    return () => stopCamera();
+    return () => {
+      window.removeEventListener('message', handleNativeCameraMessage);
+      document.removeEventListener('message', handleNativeCameraMessage as EventListener);
+      stopCamera();
+    };
   }, []);
 
   const startCamera = async () => {
+    setError(null);
+
+    // Expo Go's WebView does not expose the browser getUserMedia API.
+    // The native wrapper handles camera access and returns a captured image.
+    if (window.ReactNativeWebView?.postMessage) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'AGROCARE_OPEN_NATIVE_CAMERA' }));
+      setIsNativeCameraOpen(true);
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Camera access is not supported in this browser. Upload a crop photo instead.');
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' }, 
-        audio: false 
-      });
+      let stream: MediaStream;
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+      } catch (cameraError) {
+        const errorName = cameraError instanceof DOMException ? cameraError.name : '';
+        if (!['NotFoundError', 'OverconstrainedError'].includes(errorName)) {
+          throw cameraError;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsActive(true);
       }
     } catch (err) {
-      console.error("Camera access denied:", err);
-      setError("Camera access denied. Please check permissions.");
+      console.error('Camera initialization failed:', err);
+      const errorName = err instanceof DOMException ? err.name : '';
+      setError(
+        errorName === 'NotAllowedError' || errorName === 'SecurityError'
+          ? 'Camera permission is blocked. Allow camera access in your browser settings or upload a crop photo instead.'
+          : 'Camera is unavailable right now. Upload a crop photo instead.',
+      );
     }
   };
 
@@ -68,13 +128,33 @@ export const CameraDiagnosis: React.FC<CameraDiagnosisProps> = ({ onCapture, onC
     }
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') onCapture(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
       <div className="relative flex-1 flex items-center justify-center overflow-hidden">
-        {error ? (
+        {isNativeCameraOpen ? (
+          <div className="text-white text-center p-6">
+            <p className="mb-2 font-semibold">Opening your phone camera…</p>
+            <p className="text-sm text-white/70">Allow camera access when Expo Go asks.</p>
+          </div>
+        ) : error ? (
           <div className="text-white text-center p-6">
             <p className="mb-4">{error}</p>
-            <button onClick={onClose} className="px-6 py-2 bg-white text-black rounded-full font-bold">Close</button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button onClick={startCamera} className="px-6 py-2 bg-white text-black rounded-full font-bold">Try again</button>
+              <button onClick={() => uploadInputRef.current?.click()} className="px-6 py-2 bg-emerald-400 text-black rounded-full font-bold">Upload photo</button>
+              <button onClick={onClose} className="px-6 py-2 bg-white/20 text-white rounded-full font-bold">Close</button>
+            </div>
           </div>
         ) : (
           <video 
@@ -109,7 +189,7 @@ export const CameraDiagnosis: React.FC<CameraDiagnosisProps> = ({ onCapture, onC
             <Zap size={16} className="text-yellow-400" />
             <span className="text-white text-xs font-bold uppercase tracking-wider">AI Scanner Active</span>
           </div>
-          <button className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white">
+          <button onClick={startCamera} className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white">
             <RefreshCw size={24} />
           </button>
         </div>
@@ -126,6 +206,14 @@ export const CameraDiagnosis: React.FC<CameraDiagnosisProps> = ({ onCapture, onC
         </div>
       </div>
 
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

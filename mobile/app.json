@@ -18,6 +18,14 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AgroCare AI to use your camera for crop diagnosis."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
